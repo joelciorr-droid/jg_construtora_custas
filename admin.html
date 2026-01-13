@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>JG | Admin Config</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <div class="container">
+    <div class="card no-print">
+      <h1>Admin | Configurações</h1>
+      <div class="muted">Somente ADMIN pode acessar e alterar valores.</div>
+      <div class="hr"></div>
+
+      <div id="msg"></div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+        <a class="btn secondary" href="index.html">Voltar</a>
+        <button class="btn" id="btnLoad">Carregar config</button>
+        <button class="btn" id="btnSave">Salvar alterações</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Config atual</h2>
+      <div class="muted">Edite valores e clique em “Salvar alterações”.</div>
+      <div class="hr"></div>
+      <div id="list"></div>
+    </div>
+
+    <div class="card">
+      <h2>Usuários</h2>
+      <div class="muted">Crie corretores. A senha é definida no primeiro login.</div>
+      <div class="hr"></div>
+
+      <div class="row row-3">
+        <div><label>Email</label><input id="u_email"></div>
+        <div><label>Nome</label><input id="u_name"></div>
+        <div>
+          <label>Role</label>
+          <select id="u_role">
+            <option value="BROKER">BROKER</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" id="btnAddUser">Adicionar usuário</button>
+        <button class="btn secondary" id="btnListUsers">Listar usuários</button>
+      </div>
+
+      <div id="users" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    function msg(html, ok=true){
+      $('msg').innerHTML = '<div class="notice '+(ok?'ok':'err')+'">'+html+'</div>';
+    }
+
+    let CONFIG = null;
+
+    async function ensureAdmin(){
+      const { token, user } = getSession();
+      if (!token || !user) { window.location.href = "index.html"; return; }
+      if (user.role !== 'ADMIN') { msg('Acesso negado: apenas ADMIN.', false); return false; }
+      return true;
+    }
+
+    function renderConfig(){
+      const keys = Object.keys(CONFIG || {}).sort();
+      $('list').innerHTML = keys.map(k => `
+        <div class="row row-2" style="margin-bottom:10px">
+          <div>
+            <label>key</label>
+            <input value="${k}" disabled />
+          </div>
+          <div>
+            <label>value</label>
+            <input data-key="${k}" value="${CONFIG[k]}" />
+          </div>
+        </div>
+      `).join('');
+    }
+
+    $('btnLoad').onclick = async () => {
+      try{
+        if (!(await ensureAdmin())) return;
+        const { token } = getSession();
+        const r = await apiPost({ action:'getConfig', token });
+        if (!r.ok) return msg(r.error, false);
+        CONFIG = r.config;
+        renderConfig();
+        msg('Config carregada.', true);
+      }catch(e){ msg(String(e), false); }
+    };
+
+    $('btnSave').onclick = async () => {
+      try{
+        if (!(await ensureAdmin())) return;
+        const { token } = getSession();
+
+        const inputs = document.querySelectorAll('input[data-key]');
+        const updates = Array.from(inputs).map(i => ({ key: i.dataset.key, value: i.value }));
+
+        const r = await apiPost({ action:'adminUpdateConfig', token, updates });
+        if (!r.ok) return msg(r.error, false);
+        msg('Config salva com sucesso.', true);
+      }catch(e){ msg(String(e), false); }
+    };
+
+    $('btnAddUser').onclick = async () => {
+      try{
+        if (!(await ensureAdmin())) return;
+        const { token } = getSession();
+        const email = $('u_email').value.trim();
+        const name = $('u_name').value.trim();
+        const role = $('u_role').value;
+
+        const r = await apiPost({ action:'adminCreateUser', token, email, name, role });
+        if (!r.ok) return msg(r.error, false);
+        msg('Usuário criado. Ele define senha no primeiro login.', true);
+      }catch(e){ msg(String(e), false); }
+    };
+
+    $('btnListUsers').onclick = async () => {
+      try{
+        if (!(await ensureAdmin())) return;
+        const { token } = getSession();
+        const r = await apiPost({ action:'adminListUsers', token });
+        if (!r.ok) return msg(r.error, false);
+
+        $('users').innerHTML = `
+          <table class="table">
+            <thead><tr><th>Email</th><th>Nome</th><th>Role</th><th>Ativo</th></tr></thead>
+            <tbody>
+              ${r.users.map(u => `<tr><td>${u.email}</td><td>${u.name}</td><td>${u.role}</td><td>${u.active}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        `;
+      }catch(e){ msg(String(e), false); }
+    };
+
+    (async function(){
+      await ensureAdmin();
+    })();
+  </script>
+</body>
+</html>

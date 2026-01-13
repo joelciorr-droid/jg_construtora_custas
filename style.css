@@ -1,0 +1,61 @@
+:root{
+  --bg:#0b1220;
+  --card:#111b2e;
+  --muted:#93a4c7;
+  --text:#e9f0ff;
+  --accent:#2f6bff;
+  --danger:#ff4d4d;
+  --ok:#2bd576;
+  --line:rgba(255,255,255,.08);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  background:linear-gradient(120deg,#070b14,#0b1220 50%,#0a1632);
+  color:var(--text);
+}
+.container{max-width:1100px;margin:0 auto;padding:24px}
+.grid{display:grid;gap:16px}
+@media(min-width:900px){.grid-2{grid-template-columns:1fr 1fr}}
+.card{
+  background:rgba(17,27,46,.92);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:16px;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);
+}
+h1,h2{margin:0 0 10px}
+small, .muted{color:var(--muted)}
+.row{display:grid;gap:10px}
+@media(min-width:700px){.row-2{grid-template-columns:1fr 1fr}.row-3{grid-template-columns:1fr 1fr 1fr}}
+label{font-size:13px;color:var(--muted)}
+input, select, textarea{
+  width:100%; padding:10px 12px; border-radius:12px;
+  border:1px solid var(--line); background:#0c1426; color:var(--text);
+  outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:rgba(47,107,255,.6)}
+.btn{
+  display:inline-flex; align-items:center; justify-content:center;
+  gap:8px; padding:10px 14px; border-radius:12px;
+  border:1px solid var(--line); background:rgba(47,107,255,.95);
+  color:white; cursor:pointer; font-weight:600;
+}
+.btn.secondary{background:transparent}
+.btn.danger{background:rgba(255,77,77,.95)}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.hr{height:1px;background:var(--line);margin:12px 0}
+.badge{display:inline-block;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-size:12px}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{padding:10px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}
+.notice{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:#0c1426}
+.notice.ok{border-color:rgba(43,213,118,.5)}
+.notice.err{border-color:rgba(255,77,77,.5)}
+.print-area{background:white;color:black;padding:20px;border-radius:12px}
+@media print{
+  body{background:white}
+  .no-print{display:none!important}
+  .card{border:none;box-shadow:none}
+  .print-area{padding:0;border-radius:0}
+}
