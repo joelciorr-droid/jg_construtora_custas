@@ -1,5 +1,5 @@
 // ======= CONFIGURE AQUI =======
-const API_URL = "https://joelciorr-droid.github.io/jg_construtora_custas"; // ex: https://script.google.com/macros/s/XXXX/exec
+const API_URL = "https://script.google.com/macros/s/AKfycbxmwLIv3lqMqVF6D5_jfnLUV0efIDAi-BkP7vcOFqKPrnTk26ZjyEL-WITSfmfe9H3m5A/exec"; // ex: https://script.google.com/macros/s/XXXX/exec
 // ==============================
 
 function $(id){ return document.getElementById(id); }
@@ -106,4 +106,5 @@ function calcTotal(payload, config){
     total
   };
 }
+
 
