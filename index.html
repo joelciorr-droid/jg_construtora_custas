@@ -10,7 +10,7 @@
   <div class="container">
     <div class="card no-print">
       <h1>JG | Proposta & Custas</h1>
-      <div class="muted">Acesso do corretor (login) — seus cálculos ficam protegidos.</div>
+      <div class="muted">Acesso do corretor (login). Cálculos protegidos.</div>
       <div class="hr"></div>
 
       <div class="row row-2">
@@ -154,21 +154,60 @@
       <div class="card">
         <div class="no-print">
           <h2>Resumo (para apresentar ao cliente)</h2>
-          <div class="muted">Este bloco é o que vai para o PDF.</div>
+          <div class="muted">Este bloco vai para o PDF.</div>
           <div class="hr"></div>
         </div>
 
         <div class="print-area" id="printArea">
-          <h2 style="margin-top:0">Proposta de Custas e Construção</h2>
-          <div id="resHeader" class="muted"></div>
+          <div style="display:flex;align-items:center;gap:14px;">
+            <img src="logo.png" alt="JG Construtora" style="height:70px"/>
+            <div>
+              <div style="font-weight:700;font-size:16px;">JG Construtora</div>
+              <div style="font-size:12px;color:#333;">Proposta de Custas e Construção</div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div id="resHeader" style="font-size:13px;color:#111;"></div>
           <div class="hr"></div>
           <div id="resBody"></div>
           <div class="hr"></div>
-          <div><b>Total estimado:</b> <span id="resTotal"></span></div>
-          <div style="margin-top:10px;font-size:12px;color:#333">
+          <div style="font-size:15px;"><b>Total estimado:</b> <span id="resTotal"></span></div>
+
+          <div style="margin-top:10px;font-size:11px;color:#333">
             Observação: valores estimados com base nas configurações vigentes e informações fornecidas pelo cliente.
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL TROCA DE SENHA -->
+  <div id="pwModal" class="no-print" style="
+    position:fixed; inset:0; background:rgba(0,0,0,.6);
+    display:none; align-items:center; justify-content:center; padding:16px; z-index:9999;">
+    <div class="card" style="max-width:520px; width:100%;">
+      <h2>Trocar senha</h2>
+      <div class="muted">Por segurança, você precisa criar uma nova senha para continuar.</div>
+      <div class="hr"></div>
+
+      <div class="row row-2">
+        <div>
+          <label>Nova senha</label>
+          <input id="newPass" type="password" placeholder="mínimo 6 caracteres">
+        </div>
+        <div>
+          <label>Confirmar nova senha</label>
+          <input id="newPass2" type="password" placeholder="repita a senha">
+        </div>
+      </div>
+
+      <div id="pwMsg" style="margin-top:12px"></div>
+
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="btn secondary" id="pwLogout">Sair</button>
+        <button class="btn" id="pwSave">Salvar nova senha</button>
       </div>
     </div>
   </div>
@@ -181,13 +220,28 @@
       el.innerHTML = '<div class="notice ' + (ok?'ok':'err') + '">' + html + '</div>';
     }
 
+    function msgPw(html, ok=true){
+      $('pwMsg').innerHTML = '<div class="notice '+(ok?'ok':'err')+'">'+html+'</div>';
+    }
+
+    function openPwModal(){
+      document.body.classList.add('modal-open');
+      $('pwModal').style.display = 'flex';
+      $('newPass').value = '';
+      $('newPass2').value = '';
+      $('pwMsg').innerHTML = '';
+    }
+
+    function closePwModal(){
+      document.body.classList.remove('modal-open');
+      $('pwModal').style.display = 'none';
+    }
+
     async function loadConfig(){
       const { token } = getSession();
       if (!token) return;
       const r = await apiPost({ action:'getConfig', token });
-      if (r.ok){
-        CONFIG = r.config;
-      }
+      if (r.ok) CONFIG = r.config;
     }
 
     function collectPayload(){
@@ -214,7 +268,7 @@
       $('resHeader').innerHTML =
         `<div><b>Cliente:</b> ${payload.cliente_nome || '-'} | <b>Telefone:</b> ${payload.cliente_telefone || '-'}</div>
          <div><b>Cidade:</b> ${payload.cidade} | <b>Financiamento:</b> ${payload.tipo_financiamento} | <b>Padrão:</b> ${padraoTxt}</div>
-         <div><b>Área:</b> ${payload.area_m2 || 0} m² | <b>Valor financiado:</b> ${formatBRL(payload.valor_financiado)} | <b>Terreno:</b> ${formatBRL(payload.valor_terreno)}</div>`;
+         <div><b>Área:</b> ${payload.area_m2 || 0} m² | <b>Financiado:</b> ${formatBRL(payload.valor_financiado)} | <b>Terreno:</b> ${formatBRL(payload.valor_terreno)}</div>`;
 
       const linhas = [
         ['Construção (base)', calc.custoBase],
@@ -252,11 +306,17 @@
         const email = $('email').value.trim();
         const password = $('password').value;
         const r = await apiPost({ action:'login', email, password });
+
         if (!r.ok) return msg($('msg'), r.error, false);
+
         setSession(r.token, r.user);
         msg($('msg'), 'Login ok!', true);
         refreshUI();
         await loadConfig();
+
+        if (r.user.mustChangePassword) {
+          openPwModal();
+        }
       }catch(e){
         msg($('msg'), String(e), false);
       }
@@ -268,14 +328,45 @@
       msg($('msg'), 'Sessão encerrada.', true);
     };
 
+    $('pwLogout').onclick = () => {
+      clearSession();
+      refreshUI();
+      closePwModal();
+      msg($('msg'), 'Sessão encerrada.', true);
+    };
+
+    $('pwSave').onclick = async () => {
+      try{
+        const { token, user } = getSession();
+        if (!token || !user) return msgPw('Sessão inválida. Faça login novamente.', false);
+
+        const newPassword = $('newPass').value;
+        const confirmPassword = $('newPass2').value;
+
+        const r = await apiPost({ action:'changePassword', token, newPassword, confirmPassword });
+        if (!r.ok) return msgPw(r.error || 'Não foi possível trocar a senha.', false);
+
+        user.mustChangePassword = false;
+        localStorage.setItem('user', JSON.stringify(user));
+
+        msgPw('Senha alterada com sucesso! Você já pode usar o sistema.', true);
+        setTimeout(() => closePwModal(), 500);
+      }catch(e){
+        msgPw(String(e), false);
+      }
+    };
+
     $('btnCalcular').onclick = async () => {
       try{
-        const { token } = getSession();
+        const { token, user } = getSession();
         if (!token) return msg($('msg2'), 'Faça login primeiro.', false);
+        if (user?.mustChangePassword) return msg($('msg2'), 'Troque sua senha para continuar.', false);
+
         if (!CONFIG) await loadConfig();
         const payload = collectPayload();
         const calc = calcTotal(payload, CONFIG);
         payload.total_estimado = calc.total;
+
         renderResumo(payload, calc);
         msg($('msg2'), 'Cálculo atualizado.', true);
       }catch(e){
@@ -285,8 +376,10 @@
 
     $('btnSalvar').onclick = async () => {
       try{
-        const { token } = getSession();
+        const { token, user } = getSession();
         if (!token) return msg($('msg2'), 'Faça login primeiro.', false);
+        if (user?.mustChangePassword) return msg($('msg2'), 'Troque sua senha para continuar.', false);
+
         if (!CONFIG) await loadConfig();
         const payload = collectPayload();
         const calc = calcTotal(payload, CONFIG);
@@ -294,18 +387,15 @@
 
         const r = await apiPost({ action:'saveLead', token, payload });
         if (!r.ok) return msg($('msg2'), r.error, false);
+
         msg($('msg2'), 'Lead salvo no Google Sheets.', true);
       }catch(e){
         msg($('msg2'), String(e), false);
       }
     };
 
-    $('btnPDF').onclick = () => {
-      // PDF nativo do navegador
-      window.print();
-    };
+    $('btnPDF').onclick = () => window.print();
 
-    // init
     (async function(){
       refreshUI();
       const { token } = getSession();
