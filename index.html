@@ -212,7 +212,10 @@ $('btnLogin').onclick=async()=>{
   if(!r.ok) return msg($('msg'),r.error,false);
   setSession(r.token,r.user);
   refreshUI();
-  const cfg=await getConfig(r.token); if(cfg.ok) CONFIG=cfg.config;
+  const cfg = await getConfig(r.token);
+  if(!cfg.ok) return msg($('msg'),'Erro ao carregar configurações.',false);
+  CONFIG = cfg.config;
+  
   await loadExtras();
   msg($('msg'),'Login realizado.',true);
 };
@@ -277,4 +280,5 @@ refreshUI();
 </script>
 </body>
 </html>
+
 
