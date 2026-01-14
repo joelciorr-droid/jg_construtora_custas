@@ -5,22 +5,24 @@ const API_URL = "https://script.google.com/macros/s/AKfycbxmwLIv3lqMqVF6D5_jfnLU
 function $(id){ return document.getElementById(id); }
 
 function formatBRL(v){
-  const n = Number(v || 0);
+  const n = Number(num(v) || 0);
   return n.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
 }
+
 function num(v){
   if (v === null || v === undefined) return 0;
   if (typeof v === 'number') return v;
   return Number(String(v).replace(/\./g,'').replace(',','.')) || 0;
 }
 
+// ====== CORS-FREE POST (sem preflight) ======
 async function apiPost(payload){
-  const res = await fetch(API_URL, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(payload)
-  });
-  return res.json();
+  const formData = new URLSearchParams();
+  formData.append('data', JSON.stringify(payload));
+
+  const res = await fetch(API_URL, { method:'POST', body: formData });
+  const txt = await res.text();
+  return JSON.parse(txt);
 }
 
 function setSession(token, user){
@@ -35,12 +37,6 @@ function getSession(){
 function clearSession(){
   localStorage.removeItem('token');
   localStorage.removeItem('user');
-}
-
-function requireLoginOrRedirect(){
-  const { token, user } = getSession();
-  if (!token || !user) window.location.href = "index.html";
-  return { token, user };
 }
 
 // ======= CÁLCULO (MVP) =======
@@ -97,7 +93,6 @@ function calcTotal(payload, config){
     calcada = ml * num(config.CALCADA_PRECO_METRO_LINEAR);
   }
 
-  // Total estimado (MVP soma itens principais)
   const total = custoBase + laje + projSem + projCom + taxaFinR + itbi + vistoria + tao + calcada;
 
   return {
@@ -106,5 +101,3 @@ function calcTotal(payload, config){
     total
   };
 }
-
-
