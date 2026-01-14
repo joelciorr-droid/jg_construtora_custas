@@ -1,41 +1,44 @@
-// ======= CONFIGURE AQUI =======
-const API_URL = "https://script.google.com/macros/s/AKfycbwR_riB5A-enOOTsQEBRHS-OBCmD4XPHUGFPVZsinJ8i241v7b0YSBhnuO6CUuWyFRIwQ/exec"; // ex: https://script.google.com/macros/s/XXXX/exec
-// ==============================
+const API_URL = "https://script.google.com/macros/s/AKfycbx4xJEoVymcBt8muOp_uEVxIinPl8WL1jGE_iDB3Rx1vU-MWKytDJhymcFWTFSjG0cziw/exec";
 
 function $(id){ return document.getElementById(id); }
-
-function formatBRL(v){
-  const n = Number(num(v) || 0);
-  return n.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
-}
 
 function num(v){
   if (v === null || v === undefined) return 0;
   if (typeof v === 'number') return v;
 
   let s = String(v).trim();
+  if (!s) return 0;
 
-  // remove símbolo de % se alguém colocar
-  s = s.replace('%','').trim();
+  s = s.replace(/\s/g,'').replace('%','');
 
-  // Se tiver vírgula, assume formato pt-BR: 151.470,00
-  if (s.includes(',')) {
-    s = s.replace(/\./g, '').replace(',', '.');
-  } else {
-    // Se NÃO tiver vírgula, assume formato padrão com ponto decimal: 0.025
-    // (não remove ponto!)
-    s = s.replace(/\s/g, '');
+  const hasComma = s.includes(',');
+  const hasDot = s.includes('.');
+
+  if (hasComma && hasDot) {
+    const lastComma = s.lastIndexOf(',');
+    const lastDot = s.lastIndexOf('.');
+    if (lastComma > lastDot) {
+      s = s.replace(/\./g,'').replace(',', '.'); // pt-BR
+    } else {
+      s = s.replace(/,/g,''); // 1,234.56
+    }
+  } else if (hasComma && !hasDot) {
+    s = s.replace(',', '.'); // 0,025 -> 0.025
   }
 
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 }
 
-// ====== CORS-FREE POST (sem preflight) ======
+function formatBRL(v){
+  const n = Number(num(v)||0);
+  return n.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+}
+
+// POST sem preflight (CORS ok)
 async function apiPost(payload){
   const formData = new URLSearchParams();
   formData.append('data', JSON.stringify(payload));
-
   const res = await fetch(API_URL, { method:'POST', body: formData });
   const txt = await res.text();
   return JSON.parse(txt);
@@ -55,7 +58,14 @@ function clearSession(){
   localStorage.removeItem('user');
 }
 
-// ======= CÁLCULO (MVP) =======
+// Helpers API
+async function getConfig(token){ return apiPost({ action:'getConfig', token }); }
+async function getCompany(token){ return apiPost({ action:'getCompany', token }); }
+async function getBroker(token){ return apiPost({ action:'getBroker', token }); }
+async function listLeads(token){ return apiPost({ action:'listLeads', token }); }
+async function updateLead(token, rowNumber, patch){ return apiPost({ action:'updateLead', token, rowNumber, patch }); }
+
+// Cálculo: mantém seu MVP + (aqui depois vamos incluir faixas)
 function calcTotal(payload, config){
   const area = num(payload.area_m2);
   const padrao = payload.padrao;
@@ -67,19 +77,15 @@ function calcTotal(payload, config){
 
   let valorM2 = padrao === 'C' ? m2C : padrao === 'B' ? m2B : m2A;
   const custoBase = area * valorM2;
-
   const laje = payload.laje === 'SIM' ? area * lajeAd : 0;
 
-  // Projetos
   const projSem = payload.projeto === 'SEM_ESTRUTURAL' ? area * num(config.PROJ_SEM_ESTR_M2) : 0;
   const projCom = payload.projeto === 'COM_ESTRUTURAL' ? area * num(config.PROJ_COM_ESTR_M2) : 0;
 
-  // Taxa financiamento
   const valorFin = num(payload.valor_financiado);
   const taxaFin = payload.tipo_financiamento === 'MCMV' ? num(config.TAXA_FIN_MCMV) : num(config.TAXA_FIN_OUTROS);
   const taxaFinR = valorFin * taxaFin;
 
-  // ITBI
   const valorTerreno = num(payload.valor_terreno);
   let itbi = 0;
   if (payload.operacao !== 'CONSTRUCAO_APENAS'){
@@ -94,15 +100,12 @@ function calcTotal(payload, config){
     }
   }
 
-  // Vistoria Caixa
   const vistoria = num(config.VISTORIA_CAIXA_FIXO);
 
-  // TAO
   const tao = payload.tipo_financiamento === 'MCMV'
     ? (valorFin * num(config.TAO_MCMV))
     : num(config.TAO_OUTROS_FIXO);
 
-  // Calçada (simples por metro linear)
   let calcada = 0;
   if (payload.cidade === 'BOA_VISTA' && payload.possui_calcada === 'NAO'){
     const ml = num(payload.calcada_metros_lineares);
@@ -110,12 +113,5 @@ function calcTotal(payload, config){
   }
 
   const total = custoBase + laje + projSem + projCom + taxaFinR + itbi + vistoria + tao + calcada;
-
-  return {
-    custoBase, laje, projSem, projCom,
-    taxaFinR, itbi, vistoria, tao, calcada,
-    total
-  };
+  return { custoBase, laje, projSem, projCom, taxaFinR, itbi, vistoria, tao, calcada, total };
 }
-
-
