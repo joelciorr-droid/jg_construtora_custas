@@ -3,404 +3,274 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>JG | Proposta & Custas</title>
+  <title>JG | Proposta de Construção</title>
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <div class="container">
+<div class="container">
+
+  <!-- LOGIN -->
+  <div class="card no-print">
+    <h1>JG | Proposta de Construção</h1>
+    <div class="muted">Acesso exclusivo para corretores autorizados</div>
+    <div class="hr"></div>
+
+    <div class="row row-2">
+      <div>
+        <label>E-mail</label>
+        <input id="email" type="email"/>
+      </div>
+      <div>
+        <label>Senha</label>
+        <input id="password" type="password"/>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" id="btnLogin">Entrar</button>
+      <button class="btn secondary" id="btnLogout" style="display:none">Sair</button>
+      <span class="badge" id="who"></span>
+      <a class="btn secondary" id="crmLink" href="crm.html" style="display:none">CRM</a>
+    </div>
+
+    <div id="msg" style="margin-top:12px"></div>
+  </div>
+
+  <!-- FORM + RESUMO -->
+  <div class="grid grid-2" style="margin-top:16px">
+
+    <!-- FORM -->
     <div class="card no-print">
-      <h1>JG | Proposta & Custas</h1>
-      <div class="muted">Acesso do corretor (login). Cálculos protegidos.</div>
+      <h2>Dados do Cliente</h2>
       <div class="hr"></div>
 
       <div class="row row-2">
         <div>
-          <label>E-mail</label>
-          <input id="email" type="email" placeholder="corretor@..." />
+          <label>Nome do cliente</label>
+          <input id="cliente_nome"/>
         </div>
         <div>
-          <label>Senha</label>
-          <input id="password" type="password" placeholder="********" />
+          <label>Telefone</label>
+          <input id="cliente_telefone"/>
         </div>
       </div>
 
-      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn" id="btnLogin">Entrar</button>
-        <button class="btn secondary" id="btnLogout" style="display:none">Sair</button>
-        <span class="badge" id="who"></span>
-      </div>
-
-      <div id="msg" style="margin-top:12px"></div>
-    </div>
-
-    <div class="grid grid-2" style="margin-top:16px">
-      <div class="card no-print">
-        <h2>Dados do cliente</h2>
-        <div class="muted">Esses dados são gravados para acompanhamento do funil.</div>
-        <div class="hr"></div>
-
-        <div class="row row-2">
-          <div>
-            <label>Nome do cliente</label>
-            <input id="cliente_nome" />
-          </div>
-          <div>
-            <label>Telefone (WhatsApp)</label>
-            <input id="cliente_telefone" placeholder="(95) 9xxxx-xxxx"/>
-          </div>
+      <div class="row row-2" style="margin-top:10px">
+        <div>
+          <label>Cidade</label>
+          <select id="cidade">
+            <option value="BOA_VISTA">Boa Vista</option>
+            <option value="CANTA">Cantá</option>
+            <option value="OUTRO">Outro</option>
+          </select>
         </div>
-
-        <div class="row row-2" style="margin-top:10px">
-          <div>
-            <label>Cidade (obra)</label>
-            <select id="cidade">
-              <option value="BOA_VISTA">Boa Vista</option>
-              <option value="CANTA">Cantá</option>
-              <option value="OUTRO">Outro</option>
-            </select>
-          </div>
-          <div>
-            <label>Operação</label>
-            <select id="operacao">
-              <option value="TERRENO_E_CONSTRUCAO">Terreno + Construção</option>
-              <option value="CONSTRUCAO_APENAS">Construção apenas</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="row row-2" style="margin-top:10px">
-          <div>
-            <label>Tipo financiamento</label>
-            <select id="tipo_financiamento">
-              <option value="MCMV">Minha Casa Minha Vida</option>
-              <option value="OUTROS">SBPE / Outros</option>
-            </select>
-          </div>
-          <div>
-            <label>Renda bruta familiar (R$) (para ITBI Boa Vista)</label>
-            <input id="renda_bruta_familiar" placeholder="Ex: 4500,00"/>
-          </div>
-        </div>
-
-        <div class="hr"></div>
-
-        <h2>Dados da obra</h2>
-
-        <div class="row row-3">
-          <div>
-            <label>Área construída (m²)</label>
-            <input id="area_m2" placeholder="Ex: 72"/>
-          </div>
-          <div>
-            <label>Padrão</label>
-            <select id="padrao">
-              <option value="C">Tipo C (básico)</option>
-              <option value="B">Tipo B (intermediário)</option>
-              <option value="A" selected>Tipo A (normal)</option>
-            </select>
-          </div>
-          <div>
-            <label>Laje?</label>
-            <select id="laje">
-              <option value="NAO">Não</option>
-              <option value="SIM">Sim</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="row row-3" style="margin-top:10px">
-          <div>
-            <label>Valor do terreno (R$)</label>
-            <input id="valor_terreno" placeholder="Ex: 60000,00"/>
-          </div>
-          <div>
-            <label>Valor financiado (R$)</label>
-            <input id="valor_financiado" placeholder="Ex: 210000,00"/>
-          </div>
-          <div>
-            <label>Projeto</label>
-            <select id="projeto">
-              <option value="SEM_ESTRUTURAL">Sem estrutural</option>
-              <option value="COM_ESTRUTURAL">Com estrutural</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="row row-3" style="margin-top:10px">
-          <div>
-            <label>Possui calçada?</label>
-            <select id="possui_calcada">
-              <option value="SIM">Sim</option>
-              <option value="NAO">Não</option>
-            </select>
-          </div>
-          <div>
-            <label>Metros lineares de calçada</label>
-            <input id="calcada_metros_lineares" placeholder="Ex: 10"/>
-          </div>
-          <div></div>
-        </div>
-
-        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn" id="btnCalcular">Calcular</button>
-          <button class="btn secondary" id="btnSalvar">Salvar lead</button>
-          <button class="btn secondary" id="btnPDF">Gerar PDF</button>
-          <a class="btn secondary" id="adminLink" href="admin.html" style="display:none">Admin</a>
-        </div>
-
-        <div id="msg2" style="margin-top:12px"></div>
-      </div>
-
-      <div class="card">
-        <div class="no-print">
-          <h2>Resumo (para apresentar ao cliente)</h2>
-          <div class="muted">Este bloco vai para o PDF.</div>
-          <div class="hr"></div>
-        </div>
-
-        <div class="print-area" id="printArea">
-          <div style="display:flex;align-items:center;gap:14px;">
-            <img src="logo.png" alt="JG Construtora" style="height:70px"/>
-            <div>
-              <div style="font-weight:700;font-size:16px;">JG Construtora</div>
-              <div style="font-size:12px;color:#333;">Proposta de Custas e Construção</div>
-            </div>
-          </div>
-
-          <div class="hr"></div>
-
-          <div id="resHeader" style="font-size:13px;color:#111;"></div>
-          <div class="hr"></div>
-          <div id="resBody"></div>
-          <div class="hr"></div>
-          <div style="font-size:15px;"><b>Total estimado:</b> <span id="resTotal"></span></div>
-
-          <div style="margin-top:10px;font-size:11px;color:#333">
-            Observação: valores estimados com base nas configurações vigentes e informações fornecidas pelo cliente.
-          </div>
+        <div>
+          <label>Operação</label>
+          <select id="operacao">
+            <option value="TERRENO_E_CONSTRUCAO">Terreno + Construção</option>
+            <option value="CONSTRUCAO_APENAS">Construção apenas</option>
+          </select>
         </div>
       </div>
-    </div>
-  </div>
 
-  <!-- MODAL TROCA DE SENHA -->
-  <div id="pwModal" class="no-print" style="
-    position:fixed; inset:0; background:rgba(0,0,0,.6);
-    display:none; align-items:center; justify-content:center; padding:16px; z-index:9999;">
-    <div class="card" style="max-width:520px; width:100%;">
-      <h2>Trocar senha</h2>
-      <div class="muted">Por segurança, você precisa criar uma nova senha para continuar.</div>
+      <div class="row row-2" style="margin-top:10px">
+        <div>
+          <label>Tipo de financiamento</label>
+          <select id="tipo_financiamento">
+            <option value="MCMV">Minha Casa Minha Vida</option>
+            <option value="OUTROS">SBPE / Outros</option>
+          </select>
+        </div>
+        <div>
+          <label>Renda bruta familiar (R$)</label>
+          <input id="renda_bruta_familiar"/>
+        </div>
+      </div>
+
       <div class="hr"></div>
 
-      <div class="row row-2">
+      <h2>Dados da Obra</h2>
+
+      <div class="row row-3">
         <div>
-          <label>Nova senha</label>
-          <input id="newPass" type="password" placeholder="mínimo 6 caracteres">
+          <label>Área construída (m²)</label>
+          <input id="area_m2"/>
         </div>
         <div>
-          <label>Confirmar nova senha</label>
-          <input id="newPass2" type="password" placeholder="repita a senha">
+          <label>Padrão</label>
+          <select id="padrao">
+            <option value="C">Tipo C</option>
+            <option value="B">Tipo B</option>
+            <option value="A" selected>Tipo A</option>
+          </select>
+        </div>
+        <div>
+          <label>Laje</label>
+          <select id="laje">
+            <option value="NAO">Não</option>
+            <option value="SIM">Sim</option>
+          </select>
         </div>
       </div>
 
-      <div id="pwMsg" style="margin-top:12px"></div>
+      <div class="row row-3" style="margin-top:10px">
+        <div>
+          <label>Valor do terreno</label>
+          <input id="valor_terreno"/>
+        </div>
+        <div>
+          <label>Valor financiado</label>
+          <input id="valor_financiado"/>
+        </div>
+        <div>
+          <label>Projeto</label>
+          <select id="projeto">
+            <option value="SEM_ESTRUTURAL">Sem estrutural</option>
+            <option value="COM_ESTRUTURAL">Com estrutural</option>
+          </select>
+        </div>
+      </div>
 
-      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-        <button class="btn secondary" id="pwLogout">Sair</button>
-        <button class="btn" id="pwSave">Salvar nova senha</button>
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" id="btnCalcular">Calcular</button>
+        <button class="btn secondary" id="btnSalvar">Salvar Lead</button>
+        <button class="btn secondary" id="btnPDF">Gerar PDF</button>
+      </div>
+
+      <div id="msg2" style="margin-top:12px"></div>
+    </div>
+
+    <!-- RESUMO / PDF -->
+    <div class="card">
+      <div class="print-area" id="printArea">
+
+        <div style="display:flex;gap:16px;align-items:center">
+          <img src="logo.png" style="height:70px"/>
+          <div>
+            <div style="font-weight:700;font-size:16px" id="c_nome"></div>
+            <div style="font-size:12px" id="c_dados"></div>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div id="resHeader"></div>
+        <div class="hr"></div>
+        <div id="resBody"></div>
+
+        <div class="hr"></div>
+        <div style="font-size:16px"><b>Total estimado:</b> <span id="resTotal"></span></div>
+
+        <div class="hr"></div>
+
+        <div style="font-size:12px">
+          <b>Corretor:</b> <span id="b_nome"></span> |
+          <b>CRECI:</b> <span id="b_creci"></span> |
+          <b>Contato:</b> <span id="b_tel"></span>
+        </div>
+
+        <div style="margin-top:12px;font-size:11px">
+          Proposta válida por <span id="c_validade"></span> dias.
+        </div>
+
+        <div style="margin-top:30px;text-align:center">
+          ___________________________________<br/>
+          <b id="c_assinatura_nome"></b><br/>
+          <span id="c_assinatura_cargo"></span>
+        </div>
+
       </div>
     </div>
+
   </div>
+</div>
 
-  <script src="app.js"></script>
-  <script>
-    let CONFIG = null;
+<script src="app.js"></script>
+<script>
+let CONFIG=null, COMPANY=null, BROKER=null;
 
-    function msg(el, html, ok=true){
-      el.innerHTML = '<div class="notice ' + (ok?'ok':'err') + '">' + html + '</div>';
-    }
+function msg(el, txt, ok=true){
+  el.innerHTML='<div class="notice '+(ok?'ok':'err')+'">'+txt+'</div>';
+}
 
-    function msgPw(html, ok=true){
-      $('pwMsg').innerHTML = '<div class="notice '+(ok?'ok':'err')+'">'+html+'</div>';
-    }
+function refreshUI(){
+  const {token,user}=getSession();
+  $('btnLogin').style.display=token?'none':'inline-flex';
+  $('btnLogout').style.display=token?'inline-flex':'none';
+  $('who').textContent=token?user.name+' ('+user.role+')':'';
+  $('crmLink').style.display=(token && user.role==='ADMIN')?'inline-flex':'none';
+}
 
-    function openPwModal(){
-      document.body.classList.add('modal-open');
-      $('pwModal').style.display = 'flex';
-      $('newPass').value = '';
-      $('newPass2').value = '';
-      $('pwMsg').innerHTML = '';
-    }
+async function loadExtras(){
+  const {token}=getSession();
+  const c=await getCompany(token); if(c.ok) COMPANY=c.company;
+  const b=await getBroker(token); if(b.ok) BROKER=b.broker;
+}
 
-    function closePwModal(){
-      document.body.classList.remove('modal-open');
-      $('pwModal').style.display = 'none';
-    }
+$('btnLogin').onclick=async()=>{
+  const r=await apiPost({action:'login',email:$('email').value,password:$('password').value});
+  if(!r.ok) return msg($('msg'),r.error,false);
+  setSession(r.token,r.user);
+  refreshUI();
+  const cfg=await getConfig(r.token); if(cfg.ok) CONFIG=cfg.config;
+  await loadExtras();
+  msg($('msg'),'Login realizado.',true);
+};
 
-    async function loadConfig(){
-      const { token } = getSession();
-      if (!token) return;
-      const r = await apiPost({ action:'getConfig', token });
-      if (r.ok) CONFIG = r.config;
-    }
+$('btnLogout').onclick=()=>{
+  clearSession(); refreshUI();
+};
 
-    function collectPayload(){
-      return {
-        cliente_nome: $('cliente_nome').value.trim(),
-        cliente_telefone: $('cliente_telefone').value.trim(),
-        cidade: $('cidade').value,
-        operacao: $('operacao').value,
-        tipo_financiamento: $('tipo_financiamento').value,
-        renda_bruta_familiar: $('renda_bruta_familiar').value,
-        area_m2: $('area_m2').value,
-        padrao: $('padrao').value,
-        laje: $('laje').value,
-        valor_terreno: $('valor_terreno').value,
-        valor_financiado: $('valor_financiado').value,
-        projeto: $('projeto').value,
-        possui_calcada: $('possui_calcada').value,
-        calcada_metros_lineares: $('calcada_metros_lineares').value
-      };
-    }
+$('btnCalcular').onclick=()=>{
+  const payload={
+    cliente_nome:$('cliente_nome').value,
+    cliente_telefone:$('cliente_telefone').value,
+    cidade:$('cidade').value,
+    operacao:$('operacao').value,
+    tipo_financiamento:$('tipo_financiamento').value,
+    renda_bruta_familiar:$('renda_bruta_familiar').value,
+    area_m2:$('area_m2').value,
+    padrao:$('padrao').value,
+    laje:$('laje').value,
+    valor_terreno:$('valor_terreno').value,
+    valor_financiado:$('valor_financiado').value,
+    projeto:$('projeto').value
+  };
 
-    function renderResumo(payload, calc){
-      const padraoTxt = payload.padrao === 'A' ? 'Tipo A (normal)' : payload.padrao === 'B' ? 'Tipo B (intermediário)' : 'Tipo C (básico)';
-      $('resHeader').innerHTML =
-        `<div><b>Cliente:</b> ${payload.cliente_nome || '-'} | <b>Telefone:</b> ${payload.cliente_telefone || '-'}</div>
-         <div><b>Cidade:</b> ${payload.cidade} | <b>Financiamento:</b> ${payload.tipo_financiamento} | <b>Padrão:</b> ${padraoTxt}</div>
-         <div><b>Área:</b> ${payload.area_m2 || 0} m² | <b>Financiado:</b> ${formatBRL(payload.valor_financiado)} | <b>Terreno:</b> ${formatBRL(payload.valor_terreno)}</div>`;
+  const calc=calcTotal(payload,CONFIG);
+  $('resHeader').innerHTML=`<b>Cliente:</b> ${payload.cliente_nome} | ${payload.cliente_telefone}`;
+  $('resBody').innerHTML=`
+    <table class="table">
+      <tr><td>Construção base</td><td style="text-align:right">${formatBRL(calc.custoBase)}</td></tr>
+      <tr><td>Projetos</td><td style="text-align:right">${formatBRL(calc.projSem+calc.projCom)}</td></tr>
+      <tr><td>Taxa financiamento</td><td style="text-align:right">${formatBRL(calc.taxaFinR)}</td></tr>
+    </table>`;
+  $('resTotal').textContent=formatBRL(calc.total);
 
-      const linhas = [
-        ['Construção (base)', calc.custoBase],
-        ['Laje (adicional)', calc.laje],
-        ['Projeto', calc.projSem + calc.projCom],
-        ['Taxa financiamento', calc.taxaFinR],
-        ['ITBI (terreno)', calc.itbi],
-        ['Vistoria CAIXA', calc.vistoria],
-        ['TAO', calc.tao],
-        ['Calçada', calc.calcada],
-      ].filter(x => Number(x[1]) > 0);
+  if(COMPANY){
+    $('c_nome').textContent=COMPANY.nome_fantasia;
+    $('c_dados').textContent=COMPANY.razao_social+' | CNPJ '+COMPANY.cnpj;
+    $('c_validade').textContent=COMPANY.validade_proposta_dias;
+    $('c_assinatura_nome').textContent=COMPANY.assinatura_nome;
+    $('c_assinatura_cargo').textContent=COMPANY.assinatura_cargo;
+  }
+  if(BROKER){
+    $('b_nome').textContent=BROKER.nome_completo||BROKER.apelido;
+    $('b_creci').textContent=BROKER.creci;
+    $('b_tel').textContent=BROKER.telefone;
+  }
+};
 
-      $('resBody').innerHTML = `
-        <table class="table" style="width:100%">
-          <thead><tr><th>Item</th><th style="text-align:right">Valor</th></tr></thead>
-          <tbody>
-            ${linhas.map(l => `<tr><td>${l[0]}</td><td style="text-align:right">${formatBRL(l[1])}</td></tr>`).join('')}
-          </tbody>
-        </table>
-      `;
+$('btnSalvar').onclick=async()=>{
+  const {token}=getSession();
+  const payload={cliente_nome:$('cliente_nome').value,cliente_telefone:$('cliente_telefone').value};
+  const r=await apiPost({action:'saveLead',token,payload});
+  msg($('msg2'),r.ok?'Lead salvo.':r.error,r.ok);
+};
 
-      $('resTotal').textContent = formatBRL(calc.total);
-    }
+$('btnPDF').onclick=()=>window.print();
 
-    function refreshUI(){
-      const { token, user } = getSession();
-      $('btnLogin').style.display = token ? 'none' : 'inline-flex';
-      $('btnLogout').style.display = token ? 'inline-flex' : 'none';
-      $('who').textContent = token ? `${user.name} (${user.role})` : '';
-      $('adminLink').style.display = token && user.role === 'ADMIN' ? 'inline-flex' : 'none';
-    }
-
-    $('btnLogin').onclick = async () => {
-      try{
-        const email = $('email').value.trim();
-        const password = $('password').value;
-        const r = await apiPost({ action:'login', email, password });
-
-        if (!r.ok) return msg($('msg'), r.error, false);
-
-        setSession(r.token, r.user);
-        msg($('msg'), 'Login ok!', true);
-        refreshUI();
-        await loadConfig();
-
-        if (r.user.mustChangePassword) {
-          openPwModal();
-        }
-      }catch(e){
-        msg($('msg'), String(e), false);
-      }
-    };
-
-    $('btnLogout').onclick = () => {
-      clearSession();
-      refreshUI();
-      msg($('msg'), 'Sessão encerrada.', true);
-    };
-
-    $('pwLogout').onclick = () => {
-      clearSession();
-      refreshUI();
-      closePwModal();
-      msg($('msg'), 'Sessão encerrada.', true);
-    };
-
-    $('pwSave').onclick = async () => {
-      try{
-        const { token, user } = getSession();
-        if (!token || !user) return msgPw('Sessão inválida. Faça login novamente.', false);
-
-        const newPassword = $('newPass').value;
-        const confirmPassword = $('newPass2').value;
-
-        const r = await apiPost({ action:'changePassword', token, newPassword, confirmPassword });
-        if (!r.ok) return msgPw(r.error || 'Não foi possível trocar a senha.', false);
-
-        user.mustChangePassword = false;
-        localStorage.setItem('user', JSON.stringify(user));
-
-        msgPw('Senha alterada com sucesso! Você já pode usar o sistema.', true);
-        setTimeout(() => closePwModal(), 500);
-      }catch(e){
-        msgPw(String(e), false);
-      }
-    };
-
-    $('btnCalcular').onclick = async () => {
-      try{
-        const { token, user } = getSession();
-        if (!token) return msg($('msg2'), 'Faça login primeiro.', false);
-        if (user?.mustChangePassword) return msg($('msg2'), 'Troque sua senha para continuar.', false);
-
-        if (!CONFIG) await loadConfig();
-        const payload = collectPayload();
-        const calc = calcTotal(payload, CONFIG);
-        payload.total_estimado = calc.total;
-
-        renderResumo(payload, calc);
-        msg($('msg2'), 'Cálculo atualizado.', true);
-      }catch(e){
-        msg($('msg2'), String(e), false);
-      }
-    };
-
-    $('btnSalvar').onclick = async () => {
-      try{
-        const { token, user } = getSession();
-        if (!token) return msg($('msg2'), 'Faça login primeiro.', false);
-        if (user?.mustChangePassword) return msg($('msg2'), 'Troque sua senha para continuar.', false);
-
-        if (!CONFIG) await loadConfig();
-        const payload = collectPayload();
-        const calc = calcTotal(payload, CONFIG);
-        payload.total_estimado = calc.total;
-
-        const r = await apiPost({ action:'saveLead', token, payload });
-        if (!r.ok) return msg($('msg2'), r.error, false);
-
-        msg($('msg2'), 'Lead salvo no Google Sheets.', true);
-      }catch(e){
-        msg($('msg2'), String(e), false);
-      }
-    };
-
-    $('btnPDF').onclick = () => window.print();
-
-    (async function(){
-      refreshUI();
-      const { token } = getSession();
-      if (token) await loadConfig();
-    })();
-  </script>
+refreshUI();
+</script>
 </body>
 </html>
