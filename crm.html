@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>JG | CRM</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <div class="container">
+    <div class="card no-print">
+      <h1>CRM | Funil de Leads</h1>
+      <div class="muted">Somente ADMIN. Visualize e atualize status, próxima ação e observações.</div>
+      <div class="hr"></div>
+
+      <div class="row row-3">
+        <div>
+          <label>Filtro Status</label>
+          <select id="fStatus">
+            <option value="">Todos</option>
+            <option>NOVO</option>
+            <option>CONTATO</option>
+            <option>DOCUMENTOS</option>
+            <option>SIMULACAO</option>
+            <option>ASSINATURA</option>
+            <option>OBRA</option>
+            <option>CONCLUIDO</option>
+            <option>PERDIDO</option>
+          </select>
+        </div>
+        <div>
+          <label>Filtro Corretor (email contém)</label>
+          <input id="fBroker" placeholder="ex: joao@" />
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:10px">
+          <button class="btn" id="btnReload">Recarregar</button>
+          <a class="btn secondary" href="index.html">Voltar</a>
+        </div>
+      </div>
+
+      <div id="msg" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+      <h2>Leads</h2>
+      <div class="hr"></div>
+      <div id="table"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    function showMsg(html, ok=true){
+      $('msg').innerHTML = '<div class="notice '+(ok?'ok':'err')+'">'+html+'</div>';
+    }
+
+    function ensureAdmin(){
+      const { token, user } = getSession();
+      if (!token || !user) { window.location.href = "index.html"; return null; }
+      if (user.role !== 'ADMIN') { showMsg('Acesso negado: apenas ADMIN.', false); return null; }
+      return { token, user };
+    }
+
+    function esc(s){ return String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+    async function load(){
+      const sess = ensureAdmin();
+      if (!sess) return;
+
+      const r = await listLeads(sess.token);
+      if (!r.ok) return showMsg(r.error||'Erro ao listar leads', false);
+
+      const status = $('fStatus').value.trim();
+      const broker = $('fBroker').value.trim().toLowerCase();
+
+      const rows = r.leads.filter(l=>{
+        const okS = !status || String(l.status||'') === status;
+        const okB = !broker || String(l.broker_email||'').toLowerCase().includes(broker);
+        return okS && okB;
+      });
+
+      $('table').innerHTML = `
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Data</th><th>Corretor</th><th>Cliente</th><th>Telefone</th>
+              <th>Status</th><th>Próxima ação</th><th>Obs</th><th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(l=>`
+              <tr>
+                <td>${esc(l.created_at)}</td>
+                <td>${esc(l.broker_email)}</td>
+                <td>${esc(l.cliente_nome)}</td>
+                <td>${esc(l.cliente_telefone)}</td>
+                <td>
+                  <select data-row="${l._row}" data-field="status">
+                    ${['NOVO','CONTATO','DOCUMENTOS','SIMULACAO','ASSINATURA','OBRA','CONCLUIDO','PERDIDO'].map(s=>{
+                      const sel = (String(l.status||'')===s)?'selected':'';
+                      return `<option ${sel}>${s}</option>`;
+                    }).join('')}
+                  </select>
+                </td>
+                <td><input data-row="${l._row}" data-field="next_action_at" value="${esc(l.next_action_at)}" placeholder="ex: 2026-01-20"/></td>
+                <td><input data-row="${l._row}" data-field="notes" value="${esc(l.notes)}" placeholder="observações"/></td>
+                <td><button class="btn secondary" onclick="save(${l._row})">Salvar</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+      showMsg(`Carregado: ${rows.length} lead(s).`, true);
+    }
+
+    async function save(rowNumber){
+      const sess = ensureAdmin();
+      if (!sess) return;
+
+      const fields = document.querySelectorAll(`[data-row="${rowNumber}"]`);
+      const patch = {};
+      fields.forEach(el=>{
+        patch[el.dataset.field] = el.value;
+      });
+
+      const r = await updateLead(sess.token, rowNumber, patch);
+      if (!r.ok) return showMsg(r.error||'Erro ao salvar', false);
+
+      showMsg('Atualizado com sucesso.', true);
+    }
+
+    window.save = save;
+
+    $('btnReload').onclick = load;
+    $('fStatus').onchange = load;
+
+    (function(){ load(); })();
+  </script>
+</body>
+</html>
