@@ -330,29 +330,43 @@ function renderReport(payload, calc){
       <b>Operação:</b> ${payload.operacao}
     </div>
   `;
-
+  
+  const showProjSem = (calc.projSem && calc.projSem > 0);
+  const showProjCom = (calc.projCom && calc.projCom > 0);
+  const showCno = (num(payload.area_m2) > 70);
+  
   $('resBody').innerHTML = `
     <table class="table">
       <tr><td>Construção base</td><td style="text-align:right">${formatBRL(calc.custoBase)}</td></tr>
       <tr><td>Laje</td><td style="text-align:right">${formatBRL(calc.laje)}</td></tr>
-      <tr><td>Projeto (sem estrutural)</td><td style="text-align:right">${formatBRL(calc.projSem)}</td></tr>
-      <tr><td>Projeto (com estrutural)</td><td style="text-align:right">${formatBRL(calc.projCom)}</td></tr>
+
+      ${showProjSem ? `<tr><td>Projeto (sem estrutural)</td><td style="text-align:right">${formatBRL(calc.projSem)}</td></tr>` : ``}
+      ${showProjCom ? `<tr><td>Projeto (com estrutural)</td><td style="text-align:right">${formatBRL(calc.projCom)}</td></tr>` : ``}
+
+      <tr><td>ART's do CREA</td><td style="text-align:right">${formatBRL(calc.crea)}</td></tr>
+
+      <tr><td>Alvará de Construção</td><td style="text-align:right">${formatBRL(calc.alvara)}</td></tr>
+
+      <tr><td>Vistoria Caixa</td><td style="text-align:right">${formatBRL(calc.vistoria)}</td></tr>
 
       <tr><td>Taxa de financiamento</td><td style="text-align:right">${formatBRL(calc.taxaFinR)}</td></tr>
+
       <tr><td>ITBI (terreno)</td><td style="text-align:right">${formatBRL(calc.itbi)}</td></tr>
-      <tr><td>Vistoria Caixa</td><td style="text-align:right">${formatBRL(calc.vistoria)}</td></tr>
+
+      <tr><td>Registro de Alienação</td><td style="text-align:right">${formatBRL(calc.regAlienacao)}</td></tr>
+
       <tr><td>TAO</td><td style="text-align:right">${formatBRL(calc.tao)}</td></tr>
+
       <tr><td>Calçada</td><td style="text-align:right">${formatBRL(calc.calcada)}</td></tr>
 
-      <tr><td>CREA (faixa por m²)</td><td style="text-align:right">${formatBRL(calc.crea)}</td></tr>
-      <tr><td>Alvará (faixa por m²)</td><td style="text-align:right">${formatBRL(calc.alvara)}</td></tr>
-      <tr><td>Habite-se (faixa por m²)</td><td style="text-align:right">${formatBRL(calc.habite)}</td></tr>
-      <tr><td>Registro Alienação (faixa por R$)</td><td style="text-align:right">${formatBRL(calc.regAlienacao)}</td></tr>
-      <tr><td>Averbação (faixa por R$)</td><td style="text-align:right">${formatBRL(calc.averbacao)}</td></tr>
-      <tr><td>CNO (Receita)</td><td style="text-align:right">${formatBRL(calc.cno)}</td></tr>
+      <tr><td>Habite-se</td><td style="text-align:right">${formatBRL(calc.habite)}</td></tr>
+
+      ${showCno ? `<tr><td>CNO (Receita Federal)</td><td style="text-align:right">${formatBRL(calc.cno)}</td></tr>` : ``}
+
+      <tr><td>Averbação da Obra</td><td style="text-align:right">${formatBRL(calc.averbacao)}</td></tr>
     </table>
   `;
-
+  
   $('resTotal').textContent = formatBRL(calc.total);
 }
 
@@ -420,3 +434,4 @@ toggleCalcadaUI();
 </script>
 </body>
 </html>
+
