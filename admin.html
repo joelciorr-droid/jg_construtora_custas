@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>JG | Admin Config</title>
+  <title>JG | Admin</title>
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
@@ -31,7 +31,7 @@
 
     <div class="card">
       <h2>Usuários</h2>
-      <div class="muted">Crie corretores. A senha é definida no primeiro login.</div>
+      <div class="muted">Crie corretores com senha temporária. No 1º login, o sistema obriga trocar.</div>
       <div class="hr"></div>
 
       <div class="row row-3">
@@ -44,6 +44,14 @@
             <option value="ADMIN">ADMIN</option>
           </select>
         </div>
+      </div>
+
+      <div class="row row-2" style="margin-top:10px">
+        <div>
+          <label>Senha temporária</label>
+          <input id="u_temp" type="password" placeholder="mínimo 6 caracteres">
+        </div>
+        <div></div>
       </div>
 
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
@@ -65,7 +73,7 @@
 
     async function ensureAdmin(){
       const { token, user } = getSession();
-      if (!token || !user) { window.location.href = "index.html"; return; }
+      if (!token || !user) { window.location.href = "index.html"; return false; }
       if (user.role !== 'ADMIN') { msg('Acesso negado: apenas ADMIN.', false); return false; }
       return true;
     }
@@ -119,10 +127,13 @@
         const email = $('u_email').value.trim();
         const name = $('u_name').value.trim();
         const role = $('u_role').value;
+        const tempPassword = $('u_temp').value;
 
-        const r = await apiPost({ action:'adminCreateUser', token, email, name, role });
+        const r = await apiPost({ action:'adminCreateUser', token, email, name, role, tempPassword });
         if (!r.ok) return msg(r.error, false);
-        msg('Usuário criado. Ele define senha no primeiro login.', true);
+
+        msg('Usuário criado com senha temporária. No 1º login, ele será obrigado a trocar.', true);
+        $('u_email').value=''; $('u_name').value=''; $('u_temp').value='';
       }catch(e){ msg(String(e), false); }
     };
 
@@ -135,18 +146,22 @@
 
         $('users').innerHTML = `
           <table class="table">
-            <thead><tr><th>Email</th><th>Nome</th><th>Role</th><th>Ativo</th></tr></thead>
+            <thead><tr><th>Email</th><th>Nome</th><th>Role</th><th>Trocar Senha?</th><th>Ativo</th></tr></thead>
             <tbody>
-              ${r.users.map(u => `<tr><td>${u.email}</td><td>${u.name}</td><td>${u.role}</td><td>${u.active}</td></tr>`).join('')}
+              ${r.users.map(u => `<tr>
+                <td>${u.email}</td>
+                <td>${u.name}</td>
+                <td>${u.role}</td>
+                <td>${u.must_change_password}</td>
+                <td>${u.active}</td>
+              </tr>`).join('')}
             </tbody>
           </table>
         `;
       }catch(e){ msg(String(e), false); }
     };
 
-    (async function(){
-      await ensureAdmin();
-    })();
+    (async function(){ await ensureAdmin(); })();
   </script>
 </body>
 </html>
