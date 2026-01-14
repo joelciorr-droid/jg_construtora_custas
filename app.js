@@ -1,5 +1,5 @@
 // ======= CONFIGURE AQUI =======
-const API_URL = "https://script.google.com/macros/s/AKfycbxmwLIv3lqMqVF6D5_jfnLUV0efIDAi-BkP7vcOFqKPrnTk26ZjyEL-WITSfmfe9H3m5A/exec"; // ex: https://script.google.com/macros/s/XXXX/exec
+const API_URL = "https://script.google.com/macros/s/AKfycbwR_riB5A-enOOTsQEBRHS-OBCmD4XPHUGFPVZsinJ8i241v7b0YSBhnuO6CUuWyFRIwQ/exec"; // ex: https://script.google.com/macros/s/XXXX/exec
 // ==============================
 
 function $(id){ return document.getElementById(id); }
@@ -101,3 +101,4 @@ function calcTotal(payload, config){
     total
   };
 }
+
