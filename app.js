@@ -12,7 +12,23 @@ function formatBRL(v){
 function num(v){
   if (v === null || v === undefined) return 0;
   if (typeof v === 'number') return v;
-  return Number(String(v).replace(/\./g,'').replace(',','.')) || 0;
+
+  let s = String(v).trim();
+
+  // remove símbolo de % se alguém colocar
+  s = s.replace('%','').trim();
+
+  // Se tiver vírgula, assume formato pt-BR: 151.470,00
+  if (s.includes(',')) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else {
+    // Se NÃO tiver vírgula, assume formato padrão com ponto decimal: 0.025
+    // (não remove ponto!)
+    s = s.replace(/\s/g, '');
+  }
+
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
 }
 
 // ====== CORS-FREE POST (sem preflight) ======
@@ -101,4 +117,5 @@ function calcTotal(payload, config){
     total
   };
 }
+
 
