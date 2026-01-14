@@ -216,6 +216,9 @@ $('btnLogin').onclick=async()=>{
   if(!cfg.ok) return msg($('msg'),'Erro ao carregar configurações.',false);
   CONFIG = cfg.config;
   
+  const ft = await getFeeTables(r.token);
+  if(ft.ok) FEE_TABLES = ft.tables;
+  
   await loadExtras();
   msg($('msg'),'Login realizado.',true);
 };
@@ -246,11 +249,22 @@ $('btnCalcular').onclick=()=>{
   const calc=calcTotal(payload,CONFIG);
   $('resHeader').innerHTML=`<b>Cliente:</b> ${payload.cliente_nome} | ${payload.cliente_telefone}`;
   $('resBody').innerHTML=`
-    <table class="table">
-      <tr><td>Construção base</td><td style="text-align:right">${formatBRL(calc.custoBase)}</td></tr>
-      <tr><td>Projetos</td><td style="text-align:right">${formatBRL(calc.projSem+calc.projCom)}</td></tr>
-      <tr><td>Taxa financiamento</td><td style="text-align:right">${formatBRL(calc.taxaFinR)}</td></tr>
-    </table>`;
+  <table class="table">
+    <tr><td>Construção base</td><td style="text-align:right">${formatBRL(calc.custoBase)}</td></tr>
+    <tr><td>Projetos</td><td style="text-align:right">${formatBRL(calc.projSem+calc.projCom)}</td></tr>
+    <tr><td>Taxa financiamento</td><td style="text-align:right">${formatBRL(calc.taxaFinR)}</td></tr>
+    <tr><td>ITBI</td><td style="text-align:right">${formatBRL(calc.itbi)}</td></tr>
+    <tr><td>Vistoria Caixa</td><td style="text-align:right">${formatBRL(calc.vistoria)}</td></tr>
+    <tr><td>TAO</td><td style="text-align:right">${formatBRL(calc.tao)}</td></tr>
+    <tr><td>Calçada</td><td style="text-align:right">${formatBRL(calc.calcada)}</td></tr>
+
+    <tr><td>CREA (faixa por m²)</td><td style="text-align:right">${formatBRL(calc.crea)}</td></tr>
+    <tr><td>Alvará (faixa por m²)</td><td style="text-align:right">${formatBRL(calc.alvara)}</td></tr>
+    <tr><td>Habite-se (faixa por m²)</td><td style="text-align:right">${formatBRL(calc.habite)}</td></tr>
+    <tr><td>Registro Alienação (faixa por R$)</td><td style="text-align:right">${formatBRL(calc.regAlienacao)}</td></tr>
+    <tr><td>Averbação (faixa por R$)</td><td style="text-align:right">${formatBRL(calc.averbacao)}</td></tr>
+    <tr><td>CNO (receita)</td><td style="text-align:right">${formatBRL(calc.cno)}</td></tr>
+  </table>`;
   $('resTotal').textContent=formatBRL(calc.total);
 
   if(COMPANY){
@@ -280,5 +294,6 @@ refreshUI();
 </script>
 </body>
 </html>
+
 
 
