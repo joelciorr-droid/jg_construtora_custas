@@ -80,6 +80,22 @@ function feeByRange(tableArr, x){
   return 0;
 }
 
+function rateByRange(tableArr, x){
+  // retorna a "tarifa" (ex.: 3.73) da faixa
+  return feeByRange(tableArr, x);
+}
+
+function amountByRangeFlat(tableArr, x){
+  // retorna valor fixo pela faixa
+  return feeByRange(tableArr, x);
+}
+
+function amountByRangePerM2(tableArr, area){
+  // retorna tarifa por m² * área
+  const rate = rateByRange(tableArr, area);
+  return rate * num(area);
+}
+
 // ======= CÁLCULO COMPLETO =======
 function calcTotal(payload, config){
   const area = num(payload.area_m2);
@@ -137,35 +153,42 @@ function calcTotal(payload, config){
     const ml = num(payload.calcada_metros_lineares);
     calcada = ml * num(config.CALCADA_PRECO_METRO_LINEAR);
   }
-
+  
   // ===== Tabelas por faixa =====
   const t = FEE_TABLES || {};
-
-  const crea = feeByRange(t['CREA_Faixas_Area'], area);
-
+  
+  // CREA = valor fixo por faixa de área (ARTs)
+  const crea = amountByRangeFlat(t['CREA_Faixas_Area'], area);
+  
+  // ALVARÁ = tarifa por m² (faixa define o preço do m²)
   const alvara = (payload.cidade === 'BOA_VISTA')
-    ? feeByRange(t['Alvara_BV_Faixas_Area'], area)
+    ? amountByRangePerM2(t['Alvara_BV_Faixas_Area'], area)
     : (payload.cidade === 'CANTA')
-      ? feeByRange(t['Alvara_Canta_Faixas_Area'], area)
+      ? amountByRangePerM2(t['Alvara_Canta_Faixas_Area'], area)
       : 0;
-
+  
+  // HABITE-SE = tarifa por m² (faixa define o preço do m²)
   const habite = (payload.cidade === 'BOA_VISTA')
-    ? feeByRange(t['HabiteSe_BV_Faixas_Area'], area)
+    ? amountByRangePerM2(t['HabiteSe_BV_Faixas_Area'], area)
     : (payload.cidade === 'CANTA')
-      ? feeByRange(t['HabiteSe_Canta_Faixas_Area'], area)
+      ? amountByRangePerM2(t['HabiteSe_Canta_Faixas_Area'], area)
       : 0;
-
-  const regAlienacao = feeByRange(t['Registro_Alienacao_Faixas_Valor'], valorFin);
-  const averbacao = feeByRange(t['Registro_Averbacao_Faixas_Valor'], valorFin);
-
-  // CNO (config simples por enquanto)
+  
+  // Registro Alienação = valor fixo por faixa de valor financiado
+  const regAlienacao = amountByRangeFlat(t['Registro_Alienacao_Faixas_Valor'], valorFin);
+  
+  // Averbação = valor fixo por faixa de "valor da obra" (não do financiado)
+  const valorObra = custoBase + laje; // base da obra (sem taxas/documentos)
+  const averbacao = amountByRangeFlat(t['Registro_Averbacao_Faixas_Valor'], valorObra);
+  
+  // CNO (config simples): só > 70m²
   let cno = 0;
   if (area > 70){
     const cnoPerc = num(config.CNO_PERC); // ex 0.015
     const cnoFixo = num(config.CNO_FIXO); // ex 0
     cno = cnoPerc > 0 ? (valorFin * cnoPerc) : cnoFixo;
   }
-
+  
   const total = custoBase + laje + projSem + projCom
     + taxaFinR + itbi + vistoria + tao + calcada
     + crea + alvara + habite + regAlienacao + averbacao + cno;
@@ -177,6 +200,7 @@ function calcTotal(payload, config){
     total
   };
 }
+
 
 
 
