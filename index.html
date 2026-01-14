@@ -222,6 +222,9 @@ $('btnLogout').onclick=()=>{
 };
 
 $('btnCalcular').onclick=()=>{
+  const { token } = getSession();
+  if(!token) return msg($('msg2'),'Faça login primeiro.',false);
+  if(!CONFIG) return msg($('msg2'),'Config não carregada. Refaça o login.',false);
   const payload={
     cliente_nome:$('cliente_nome').value,
     cliente_telefone:$('cliente_telefone').value,
@@ -274,3 +277,4 @@ refreshUI();
 </script>
 </body>
 </html>
+
