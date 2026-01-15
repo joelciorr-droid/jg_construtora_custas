@@ -5,163 +5,556 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>JG | Admin</title>
   <link rel="stylesheet" href="style.css"/>
+  <style>
+    .tabs{display:flex;gap:8px;flex-wrap:wrap}
+    .tab{padding:8px 10px;border:1px solid #ddd;border-radius:10px;cursor:pointer;background:#fff}
+    .tab.active{border-color:#111;font-weight:700}
+    .panel{display:none}
+    .panel.active{display:block}
+    .mini{font-size:12px;color:#666}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media (max-width: 900px){ .grid2{grid-template-columns:1fr} }
+    input,select,textarea{width:100%}
+    textarea{min-height:80px}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  </style>
 </head>
 <body>
-  <div class="container">
-    <div class="card no-print">
-      <h1>Admin | Configurações</h1>
-      <div class="muted">Somente ADMIN pode acessar e alterar valores.</div>
-      <div class="hr"></div>
+<div class="container">
 
-      <div id="msg"></div>
+  <div class="card no-print" style="display:flex;gap:10px;align-items:center;justify-content:space-between">
+    <div style="display:flex;gap:10px;align-items:center">
+      <b>JG | Admin</b>
+      <span class="badge" id="whoMini"></span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn secondary" href="index.html">Simulador</a>
+      <a class="btn secondary" href="crm.html">CRM</a>
+      <button class="btn secondary" id="btnLogoutTop" style="display:none">Sair</button>
+    </div>
+  </div>
 
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
-        <a class="btn secondary" href="index.html">Voltar</a>
-        <button class="btn" id="btnLoad">Carregar config</button>
-        <button class="btn" id="btnSave">Salvar alterações</button>
+  <!-- LOGIN -->
+  <div class="card no-print" id="loginCard">
+    <h2>Entrar (Admin)</h2>
+    <div class="row row-2">
+      <div>
+        <label>E-mail</label>
+        <input id="email" type="email" autocomplete="username"/>
+      </div>
+      <div>
+        <label>Senha</label>
+        <input id="password" type="password" autocomplete="current-password"/>
       </div>
     </div>
+    <div class="actions">
+      <button class="btn" id="btnLogin">Entrar</button>
+    </div>
+    <div id="msg" style="margin-top:12px"></div>
+  </div>
 
-    <div class="card">
-      <h2>Config atual</h2>
-      <div class="muted">Edite valores e clique em “Salvar alterações”.</div>
-      <div class="hr"></div>
-      <div id="list"></div>
+  <!-- ADMIN -->
+  <div class="card no-print" id="adminCard" style="display:none">
+    <div class="tabs">
+      <div class="tab active" data-tab="users">Usuários</div>
+      <div class="tab" data-tab="company">Construtora</div>
+      <div class="tab" data-tab="brokers">Corretores</div>
+      <div class="tab" data-tab="config">Config</div>
+      <div class="tab" data-tab="tables">Tabelas por faixa</div>
     </div>
 
-    <div class="card">
-      <h2>Usuários</h2>
-      <div class="muted">Crie corretores com senha temporária. No 1º login, o sistema obriga trocar.</div>
-      <div class="hr"></div>
+    <div class="hr"></div>
 
-      <div class="row row-3">
-        <div><label>Email</label><input id="u_email"></div>
-        <div><label>Nome</label><input id="u_name"></div>
+    <!-- USERS -->
+    <div class="panel active" id="panel-users">
+      <h3 style="margin:0 0 8px 0">Usuários</h3>
+      <div class="mini">Criar usuário com senha temporária (o corretor será forçado a trocar no primeiro login).</div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div>
+          <label>Email</label>
+          <input id="u_email"/>
+        </div>
+        <div>
+          <label>Nome</label>
+          <input id="u_name"/>
+        </div>
         <div>
           <label>Role</label>
           <select id="u_role">
-            <option value="BROKER">BROKER</option>
+            <option value="BROKER" selected>BROKER</option>
             <option value="ADMIN">ADMIN</option>
+          </select>
+        </div>
+        <div>
+          <label>Senha temporária</label>
+          <input id="u_temp" placeholder="mínimo 6 caracteres"/>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="btnUserCreate">Criar usuário</button>
+        <button class="btn secondary" id="btnUsersReload">Recarregar lista</button>
+      </div>
+
+      <div class="hr"></div>
+
+      <div id="usersTable"></div>
+
+      <div class="hr"></div>
+
+      <h4 style="margin:0 0 8px 0">Resetar senha (força troca)</h4>
+      <div class="grid2">
+        <div>
+          <label>Email do usuário</label>
+          <input id="rp_email"/>
+        </div>
+        <div>
+          <label>Nova senha temporária</label>
+          <input id="rp_temp" placeholder="mínimo 6 caracteres"/>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn secondary" id="btnResetPass">Resetar senha</button>
+      </div>
+
+      <div id="msgUsers" style="margin-top:12px"></div>
+    </div>
+
+    <!-- COMPANY -->
+    <div class="panel" id="panel-company">
+      <h3 style="margin:0 0 8px 0">Construtora</h3>
+      <div class="mini">Esses dados aparecem no cabeçalho/rodapé do PDF.</div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div><label>CNPJ</label><input id="c_cnpj"/></div>
+        <div><label>Razão social</label><input id="c_razao"/></div>
+
+        <div><label>Nome fantasia</label><input id="c_fant"/></div>
+        <div><label>Telefone</label><input id="c_tel"/></div>
+
+        <div><label>E-mail</label><input id="c_email"/></div>
+        <div><label>Validade padrão (dias)</label><input id="c_validade"/></div>
+
+        <div style="grid-column:1 / -1"><label>Endereço</label><input id="c_end"/></div>
+
+        <div><label>Assinatura (nome)</label><input id="c_ass_nome"/></div>
+        <div><label>Assinatura (cargo)</label><input id="c_ass_cargo"/></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="btnCompanySave">Salvar</button>
+        <button class="btn secondary" id="btnCompanyReload">Recarregar</button>
+      </div>
+
+      <div id="msgCompany" style="margin-top:12px"></div>
+    </div>
+
+    <!-- BROKERS -->
+    <div class="panel" id="panel-brokers">
+      <h3 style="margin:0 0 8px 0">Corretores</h3>
+      <div class="mini">Cadastro para aparecer assinatura e dados no PDF.</div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div><label>Email</label><input id="b_email"/></div>
+        <div><label>Nome completo</label><input id="b_nome"/></div>
+        <div><label>Apelido</label><input id="b_apelido"/></div>
+        <div><label>CRECI</label><input id="b_creci"/></div>
+        <div><label>Telefone</label><input id="b_tel"/></div>
+        <div>
+          <label>Ativo</label>
+          <select id="b_ativo">
+            <option value="TRUE" selected>TRUE</option>
+            <option value="FALSE">FALSE</option>
           </select>
         </div>
       </div>
 
-      <div class="row row-2" style="margin-top:10px">
-        <div>
-          <label>Senha temporária</label>
-          <input id="u_temp" type="password" placeholder="mínimo 6 caracteres">
-        </div>
-        <div></div>
+      <div class="actions">
+        <button class="btn" id="btnBrokerSave">Salvar/Atualizar corretor</button>
+        <button class="btn secondary" id="btnBrokersReload">Recarregar lista</button>
       </div>
 
-      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn" id="btnAddUser">Adicionar usuário</button>
-        <button class="btn secondary" id="btnListUsers">Listar usuários</button>
-      </div>
+      <div class="hr"></div>
+      <div id="brokersTable"></div>
 
-      <div id="users" style="margin-top:12px"></div>
+      <div id="msgBrokers" style="margin-top:12px"></div>
     </div>
-  </div>
 
-  <script src="app.js"></script>
-  <script>
-    function msg(html, ok=true){
-      $('msg').innerHTML = '<div class="notice '+(ok?'ok':'err')+'">'+html+'</div>';
-    }
+    <!-- CONFIG -->
+    <div class="panel" id="panel-config">
+      <h3 style="margin:0 0 8px 0">Config</h3>
+      <div class="mini">Editar chaves/valores. Percentuais use 0.025 (2,5%).</div>
 
-    let CONFIG = null;
+      <div class="actions">
+        <button class="btn secondary" id="btnConfigReload">Recarregar</button>
+        <button class="btn" id="btnConfigSave">Salvar alterações</button>
+      </div>
 
-    async function ensureAdmin(){
-      const { token, user } = getSession();
-      if (!token || !user) { window.location.href = "index.html"; return false; }
-      if (user.role !== 'ADMIN') { msg('Acesso negado: apenas ADMIN.', false); return false; }
-      return true;
-    }
+      <div class="hr"></div>
+      <div id="configTable"></div>
+      <div id="msgConfig" style="margin-top:12px"></div>
+    </div>
 
-    function renderConfig(){
-      const keys = Object.keys(CONFIG || {}).sort();
-      $('list').innerHTML = keys.map(k => `
-        <div class="row row-2" style="margin-bottom:10px">
-          <div>
-            <label>key</label>
-            <input value="${k}" disabled />
-          </div>
-          <div>
-            <label>value</label>
-            <input data-key="${k}" value="${CONFIG[k]}" />
-          </div>
+    <!-- TABLES -->
+    <div class="panel" id="panel-tables">
+      <h3 style="margin:0 0 8px 0">Tabelas por faixa</h3>
+      <div class="mini">Edite min/max/fee. “fee” é: valor fixo ou valor por m² (dependendo da tabela).</div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div>
+          <label>Tabela</label>
+          <select id="t_name"></select>
         </div>
-      `).join('');
+        <div class="actions" style="align-items:end">
+          <button class="btn secondary" id="btnTableLoad">Carregar</button>
+          <button class="btn" id="btnTableSave">Salvar tabela</button>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn secondary" id="btnAddRow">Adicionar linha</button>
+        <button class="btn secondary" id="btnDelRow">Remover última linha</button>
+      </div>
+
+      <div class="hr"></div>
+      <div id="tableEditor"></div>
+      <div id="msgTables" style="margin-top:12px"></div>
+    </div>
+
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+let TOKEN=null, USER=null;
+let COMPANY=null;
+let BROKERS=[];
+let USERS=[];
+let CONFIG=null;
+let TABLES=null;
+let CURRENT_TABLE_ROWS=[];
+
+function showMsg(el, txt, ok=true){
+  el.innerHTML = '<div class="notice '+(ok?'ok':'err')+'">'+txt+'</div>';
+}
+
+function refreshMenu(){
+  const ses = getSession();
+  TOKEN = ses.token;
+  USER = ses.user;
+
+  $('whoMini').textContent = TOKEN ? (USER.name+' ('+USER.role+')') : '';
+  $('btnLogoutTop').style.display = TOKEN ? 'inline-flex' : 'none';
+
+  $('loginCard').style.display = TOKEN ? 'none' : 'block';
+  $('adminCard').style.display = (TOKEN && USER.role==='ADMIN') ? 'block' : 'none';
+
+  if(TOKEN && USER.role!=='ADMIN'){
+    $('adminCard').style.display = 'block';
+    $('adminCard').innerHTML = '<div class="notice err">Acesso restrito ao ADMIN. Vá no CRM ou Simulador.</div>';
+  }
+}
+
+function doLogout(){
+  clearSession();
+  refreshMenu();
+  showMsg($('msg'), 'Sessão encerrada.', true);
+}
+$('btnLogoutTop').onclick = doLogout;
+
+function setActiveTab(name){
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.classList.toggle('active', t.dataset.tab===name);
+  });
+  document.querySelectorAll('.panel').forEach(p=>{
+    p.classList.toggle('active', p.id==='panel-'+name);
+  });
+}
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick = ()=> setActiveTab(t.dataset.tab);
+});
+
+$('btnLogin').onclick = async ()=>{
+  try{
+    const r = await apiPost({action:'login', email:$('email').value, password:$('password').value});
+    if(!r.ok) return showMsg($('msg'), r.error || 'Erro no login', false);
+    setSession(r.token, r.user);
+    refreshMenu();
+    await loadAll();
+    showMsg($('msg'), 'Login OK.', true);
+  }catch(e){
+    showMsg($('msg'), String(e), false);
+  }
+};
+
+async function loadAll(){
+  if(!TOKEN) return;
+
+  // load users
+  await reloadUsers();
+  // load company
+  await reloadCompany();
+  // load brokers
+  await reloadBrokers();
+  // load config
+  await reloadConfig();
+  // load tables list
+  await reloadTables();
+}
+
+async function reloadUsers(){
+  const r = await apiPost({action:'adminListUsers', token:TOKEN});
+  if(!r.ok) return showMsg($('msgUsers'), r.error||'Erro', false);
+  USERS = r.users || [];
+  renderUsers();
+  showMsg($('msgUsers'), 'Usuários carregados.', true);
+}
+function renderUsers(){
+  const html = `
+    <table class="table" style="width:100%">
+      <tr><th>Email</th><th>Nome</th><th>Role</th><th>Ativo</th><th>Trocar senha?</th><th>Ação</th></tr>
+      ${USERS.map(u=>`
+        <tr>
+          <td>${u.email}</td>
+          <td><input data-u="name" data-email="${u.email}" value="${u.name||''}"/></td>
+          <td>
+            <select data-u="role" data-email="${u.email}">
+              <option ${String(u.role).toUpperCase()==='BROKER'?'selected':''} value="BROKER">BROKER</option>
+              <option ${String(u.role).toUpperCase()==='ADMIN'?'selected':''} value="ADMIN">ADMIN</option>
+            </select>
+          </td>
+          <td>
+            <select data-u="active" data-email="${u.email}">
+              <option ${String(u.active).toUpperCase()==='TRUE'?'selected':''} value="TRUE">TRUE</option>
+              <option ${String(u.active).toUpperCase()!=='TRUE'?'selected':''} value="FALSE">FALSE</option>
+            </select>
+          </td>
+          <td>${String(u.must_change_password||'').toUpperCase()==='TRUE'?'SIM':'NÃO'}</td>
+          <td><button class="btn secondary" onclick="saveUserRow('${u.email}')">Salvar</button></td>
+        </tr>
+      `).join('')}
+    </table>
+  `;
+  $('usersTable').innerHTML = html;
+}
+window.saveUserRow = async (email)=>{
+  const name = document.querySelector(`input[data-u="name"][data-email="${email}"]`).value;
+  const role = document.querySelector(`select[data-u="role"][data-email="${email}"]`).value;
+  const active = document.querySelector(`select[data-u="active"][data-email="${email}"]`).value;
+  const r = await apiPost({action:'adminUpdateUser', token:TOKEN, email, patch:{name, role, active}});
+  showMsg($('msgUsers'), r.ok ? 'Usuário atualizado.' : (r.error||'Erro'), !!r.ok);
+  if(r.ok) await reloadUsers();
+};
+
+$('btnUsersReload').onclick = reloadUsers;
+
+$('btnUserCreate').onclick = async ()=>{
+  const email = $('u_email').value.trim();
+  const name = $('u_name').value.trim();
+  const role = $('u_role').value;
+  const tempPassword = $('u_temp').value;
+  const r = await apiPost({action:'adminCreateUser', token:TOKEN, email, name, role, tempPassword});
+  showMsg($('msgUsers'), r.ok ? 'Usuário criado.' : (r.error||'Erro'), !!r.ok);
+  if(r.ok){ $('u_email').value=''; $('u_name').value=''; $('u_temp').value=''; await reloadUsers(); }
+};
+
+$('btnResetPass').onclick = async ()=>{
+  const email = $('rp_email').value.trim();
+  const tempPassword = $('rp_temp').value;
+  const r = await apiPost({action:'adminResetUserPassword', token:TOKEN, email, tempPassword});
+  showMsg($('msgUsers'), r.ok ? 'Senha resetada (força troca no login).' : (r.error||'Erro'), !!r.ok);
+  if(r.ok){ $('rp_email').value=''; $('rp_temp').value=''; await reloadUsers(); }
+};
+
+async function reloadCompany(){
+  const r = await apiPost({action:'adminGetCompany', token:TOKEN});
+  if(!r.ok) return showMsg($('msgCompany'), r.error||'Erro', false);
+  COMPANY = r.company || {};
+  $('c_cnpj').value = COMPANY.cnpj||'';
+  $('c_razao').value = COMPANY.razao_social||'';
+  $('c_fant').value = COMPANY.nome_fantasia||'';
+  $('c_end').value = COMPANY.endereco||'';
+  $('c_email').value = COMPANY.email||'';
+  $('c_tel').value = COMPANY.telefone||'';
+  $('c_validade').value = COMPANY.validade_proposta_dias||'';
+  $('c_ass_nome').value = COMPANY.assinatura_nome||'';
+  $('c_ass_cargo').value = COMPANY.assinatura_cargo||'';
+  showMsg($('msgCompany'), 'Construtora carregada.', true);
+}
+$('btnCompanyReload').onclick = reloadCompany;
+$('btnCompanySave').onclick = async ()=>{
+  const company = {
+    cnpj: $('c_cnpj').value,
+    razao_social: $('c_razao').value,
+    nome_fantasia: $('c_fant').value,
+    endereco: $('c_end').value,
+    email: $('c_email').value,
+    telefone: $('c_tel').value,
+    validade_proposta_dias: $('c_validade').value,
+    assinatura_nome: $('c_ass_nome').value,
+    assinatura_cargo: $('c_ass_cargo').value,
+  };
+  const r = await apiPost({action:'adminUpdateCompany', token:TOKEN, company});
+  showMsg($('msgCompany'), r.ok ? 'Construtora salva.' : (r.error||'Erro'), !!r.ok);
+  if(r.ok) await reloadCompany();
+};
+
+async function reloadBrokers(){
+  const r = await apiPost({action:'adminListBrokers', token:TOKEN});
+  if(!r.ok) return showMsg($('msgBrokers'), r.error||'Erro', false);
+  BROKERS = r.brokers || [];
+  renderBrokers();
+  showMsg($('msgBrokers'), 'Corretores carregados.', true);
+}
+function renderBrokers(){
+  const html = `
+    <table class="table" style="width:100%">
+      <tr><th>Email</th><th>Nome</th><th>Apelido</th><th>CRECI</th><th>Telefone</th><th>Ativo</th></tr>
+      ${BROKERS.map(b=>`
+        <tr>
+          <td>${b.email||''}</td>
+          <td>${b.nome_completo||''}</td>
+          <td>${b.apelido||''}</td>
+          <td>${b.creci||''}</td>
+          <td>${b.telefone||''}</td>
+          <td>${String(b.ativo||'TRUE')}</td>
+        </tr>
+      `).join('')}
+    </table>
+  `;
+  $('brokersTable').innerHTML = html;
+}
+$('btnBrokersReload').onclick = reloadBrokers;
+
+$('btnBrokerSave').onclick = async ()=>{
+  const broker = {
+    email: $('b_email').value.trim(),
+    nome_completo: $('b_nome').value,
+    apelido: $('b_apelido').value,
+    creci: $('b_creci').value,
+    telefone: $('b_tel').value,
+    ativo: $('b_ativo').value
+  };
+  const r = await apiPost({action:'adminUpsertBroker', token:TOKEN, broker});
+  showMsg($('msgBrokers'), r.ok ? 'Corretor salvo/atualizado.' : (r.error||'Erro'), !!r.ok);
+  if(r.ok){ $('b_email').value=''; $('b_nome').value=''; $('b_apelido').value=''; $('b_creci').value=''; $('b_tel').value=''; $('b_ativo').value='TRUE'; await reloadBrokers(); }
+};
+
+async function reloadConfig(){
+  const r = await apiPost({action:'adminGetConfig', token:TOKEN});
+  if(!r.ok) return showMsg($('msgConfig'), r.error||'Erro', false);
+  CONFIG = r.config || {};
+  renderConfig();
+  showMsg($('msgConfig'), 'Config carregada.', true);
+}
+function renderConfig(){
+  const keys = Object.keys(CONFIG).sort((a,b)=>a.localeCompare(b));
+  const html = `
+    <table class="table" style="width:100%">
+      <tr><th>Key</th><th>Value</th></tr>
+      ${keys.map(k=>`
+        <tr>
+          <td>${k}</td>
+          <td><input data-k="${k}" value="${CONFIG[k] ?? ''}"/></td>
+        </tr>
+      `).join('')}
+    </table>
+    <div class="mini" style="margin-top:8px">Para adicionar nova chave: edite direto na planilha ou me peça que eu adicione aqui também.</div>
+  `;
+  $('configTable').innerHTML = html;
+}
+$('btnConfigReload').onclick = reloadConfig;
+
+$('btnConfigSave').onclick = async ()=>{
+  const inputs = Array.from(document.querySelectorAll('#configTable input[data-k]'));
+  const updates = inputs.map(inp=>({ key: inp.dataset.k, value: inp.value }));
+  const r = await apiPost({action:'adminUpdateConfig', token:TOKEN, updates});
+  showMsg($('msgConfig'), r.ok ? 'Config salva.' : (r.error||'Erro'), !!r.ok);
+  if(r.ok) await reloadConfig();
+};
+
+async function reloadTables(){
+  const r = await apiPost({action:'adminGetTables', token:TOKEN});
+  if(!r.ok) return showMsg($('msgTables'), r.error||'Erro', false);
+  TABLES = r.tables || {};
+
+  const sel = $('t_name');
+  sel.innerHTML = '';
+  Object.keys(TABLES).sort().forEach(name=>{
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  showMsg($('msgTables'), 'Tabelas carregadas.', true);
+  // auto carregar primeira
+  if(sel.options.length) loadOneTable(sel.value);
+}
+
+function loadOneTable(name){
+  CURRENT_TABLE_ROWS = (TABLES[name] || []).map(r=>({
+    min: r.min ?? '',
+    max: r.max ?? '',
+    fee: r.fee ?? ''
+  }));
+  renderTableEditor();
+}
+function renderTableEditor(){
+  const html = `
+    <table class="table" style="width:100%">
+      <tr><th>min</th><th>max</th><th>fee</th></tr>
+      ${CURRENT_TABLE_ROWS.map((r,i)=>`
+        <tr>
+          <td><input data-i="${i}" data-f="min" value="${r.min}"/></td>
+          <td><input data-i="${i}" data-f="max" value="${r.max}"/></td>
+          <td><input data-i="${i}" data-f="fee" value="${r.fee}"/></td>
+        </tr>
+      `).join('')}
+    </table>
+  `;
+  $('tableEditor').innerHTML = html;
+
+  // bind
+  document.querySelectorAll('#tableEditor input').forEach(inp=>{
+    inp.oninput = ()=>{
+      const i = Number(inp.dataset.i);
+      const f = inp.dataset.f;
+      CURRENT_TABLE_ROWS[i][f] = inp.value;
+    };
+  });
+}
+
+$('btnTableLoad').onclick = ()=> loadOneTable($('t_name').value);
+
+$('btnAddRow').onclick = ()=>{
+  CURRENT_TABLE_ROWS.push({min:'', max:'', fee:''});
+  renderTableEditor();
+};
+$('btnDelRow').onclick = ()=>{
+  CURRENT_TABLE_ROWS.pop();
+  renderTableEditor();
+};
+
+$('btnTableSave').onclick = async ()=>{
+  const tableName = $('t_name').value;
+  const rows = CURRENT_TABLE_ROWS.map(r=>({min:r.min, max:r.max, fee:r.fee}));
+  const r = await apiPost({action:'adminReplaceTable', token:TOKEN, tableName, rows});
+  showMsg($('msgTables'), r.ok ? 'Tabela salva.' : (r.error||'Erro'), !!r.ok);
+  if(r.ok) await reloadTables();
+};
+
+// boot
+refreshMenu();
+(async function boot(){
+  const ses = getSession();
+  if(ses.token){
+    TOKEN = ses.token; USER = ses.user;
+    refreshMenu();
+    if(USER && USER.role==='ADMIN'){
+      try{ await loadAll(); }catch(e){ showMsg($('msg'), String(e), false); }
     }
-
-    $('btnLoad').onclick = async () => {
-      try{
-        if (!(await ensureAdmin())) return;
-        const { token } = getSession();
-        const r = await apiPost({ action:'getConfig', token });
-        if (!r.ok) return msg(r.error, false);
-        CONFIG = r.config;
-        renderConfig();
-        msg('Config carregada.', true);
-      }catch(e){ msg(String(e), false); }
-    };
-
-    $('btnSave').onclick = async () => {
-      try{
-        if (!(await ensureAdmin())) return;
-        const { token } = getSession();
-
-        const inputs = document.querySelectorAll('input[data-key]');
-        const updates = Array.from(inputs).map(i => ({ key: i.dataset.key, value: i.value }));
-
-        const r = await apiPost({ action:'adminUpdateConfig', token, updates });
-        if (!r.ok) return msg(r.error, false);
-        msg('Config salva com sucesso.', true);
-      }catch(e){ msg(String(e), false); }
-    };
-
-    $('btnAddUser').onclick = async () => {
-      try{
-        if (!(await ensureAdmin())) return;
-        const { token } = getSession();
-        const email = $('u_email').value.trim();
-        const name = $('u_name').value.trim();
-        const role = $('u_role').value;
-        const tempPassword = $('u_temp').value;
-
-        const r = await apiPost({ action:'adminCreateUser', token, email, name, role, tempPassword });
-        if (!r.ok) return msg(r.error, false);
-
-        msg('Usuário criado com senha temporária. No 1º login, ele será obrigado a trocar.', true);
-        $('u_email').value=''; $('u_name').value=''; $('u_temp').value='';
-      }catch(e){ msg(String(e), false); }
-    };
-
-    $('btnListUsers').onclick = async () => {
-      try{
-        if (!(await ensureAdmin())) return;
-        const { token } = getSession();
-        const r = await apiPost({ action:'adminListUsers', token });
-        if (!r.ok) return msg(r.error, false);
-
-        $('users').innerHTML = `
-          <table class="table">
-            <thead><tr><th>Email</th><th>Nome</th><th>Role</th><th>Trocar Senha?</th><th>Ativo</th></tr></thead>
-            <tbody>
-              ${r.users.map(u => `<tr>
-                <td>${u.email}</td>
-                <td>${u.name}</td>
-                <td>${u.role}</td>
-                <td>${u.must_change_password}</td>
-                <td>${u.active}</td>
-              </tr>`).join('')}
-            </tbody>
-          </table>
-        `;
-      }catch(e){ msg(String(e), false); }
-    };
-
-    (async function(){ await ensureAdmin(); })();
-  </script>
+  }
+})();
+</script>
 </body>
 </html>
