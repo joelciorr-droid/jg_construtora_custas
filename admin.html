@@ -53,6 +53,31 @@
     <div id="msg" style="margin-top:12px"></div>
   </div>
 
+  <!-- TROCA DE SENHA OBRIGATÓRIA -->
+  <div class="card no-print" id="changePassCard" style="display:none">
+    <h2>Troca de senha obrigatória</h2>
+    <div class="muted">Defina sua nova senha para continuar.</div>
+    <div class="hr"></div>
+
+    <div class="row row-2">
+      <div>
+        <label>Nova senha</label>
+        <input id="newPass" type="password" autocomplete="new-password"/>
+      </div>
+      <div>
+        <label>Confirmar nova senha</label>
+        <input id="newPass2" type="password" autocomplete="new-password"/>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="btnChangePass">Salvar nova senha</button>
+      <button class="btn secondary" id="btnChangePassLogout">Sair</button>
+    </div>
+
+    <div id="msgPass" style="margin-top:12px"></div>
+  </div>
+
   <!-- ADMIN -->
   <div class="card no-print" id="adminCard" style="display:none">
     <div class="tabs">
@@ -129,15 +154,11 @@
       <div class="grid2" style="margin-top:10px">
         <div><label>CNPJ</label><input id="c_cnpj"/></div>
         <div><label>Razão social</label><input id="c_razao"/></div>
-
         <div><label>Nome fantasia</label><input id="c_fant"/></div>
         <div><label>Telefone</label><input id="c_tel"/></div>
-
         <div><label>E-mail</label><input id="c_email"/></div>
         <div><label>Validade padrão (dias)</label><input id="c_validade"/></div>
-
         <div style="grid-column:1 / -1"><label>Endereço</label><input id="c_end"/></div>
-
         <div><label>Assinatura (nome)</label><input id="c_ass_nome"/></div>
         <div><label>Assinatura (cargo)</label><input id="c_ass_cargo"/></div>
       </div>
@@ -184,7 +205,7 @@
     <!-- CONFIG -->
     <div class="panel" id="panel-config">
       <h3 style="margin:0 0 8px 0">Config</h3>
-      <div class="mini">Editar chaves/valores. Percentuais use 0.025 (2,5%).</div>
+      <div class="mini">Percentuais use 0.025 (2,5%).</div>
 
       <div class="actions">
         <button class="btn secondary" id="btnConfigReload">Recarregar</button>
@@ -199,7 +220,7 @@
     <!-- TABLES -->
     <div class="panel" id="panel-tables">
       <h3 style="margin:0 0 8px 0">Tabelas por faixa</h3>
-      <div class="mini">Edite min/max/fee. “fee” é: valor fixo ou valor por m² (dependendo da tabela).</div>
+      <div class="mini">Edite min/max/fee.</div>
 
       <div class="grid2" style="margin-top:10px">
         <div>
@@ -239,6 +260,14 @@ function showMsg(el, txt, ok=true){
   el.innerHTML = '<div class="notice '+(ok?'ok':'err')+'">'+txt+'</div>';
 }
 
+function lockForPasswordChange(){
+  $('changePassCard').style.display = 'block';
+  $('adminCard').style.display = 'none';
+}
+function unlockAfterPasswordChange(){
+  $('changePassCard').style.display = 'none';
+}
+
 function refreshMenu(){
   const ses = getSession();
   TOKEN = ses.token;
@@ -248,9 +277,15 @@ function refreshMenu(){
   $('btnLogoutTop').style.display = TOKEN ? 'inline-flex' : 'none';
 
   $('loginCard').style.display = TOKEN ? 'none' : 'block';
-  $('adminCard').style.display = (TOKEN && USER.role==='ADMIN') ? 'block' : 'none';
 
-  if(TOKEN && USER.role!=='ADMIN'){
+  if(TOKEN && USER && USER.mustChangePassword){
+    lockForPasswordChange();
+    return;
+  }
+
+  $('adminCard').style.display = (TOKEN && USER && USER.role==='ADMIN') ? 'block' : 'none';
+
+  if(TOKEN && USER && USER.role!=='ADMIN'){
     $('adminCard').style.display = 'block';
     $('adminCard').innerHTML = '<div class="notice err">Acesso restrito ao ADMIN. Vá no CRM ou Simulador.</div>';
   }
@@ -258,6 +293,7 @@ function refreshMenu(){
 
 function doLogout(){
   clearSession();
+  unlockAfterPasswordChange();
   refreshMenu();
   showMsg($('msg'), 'Sessão encerrada.', true);
 }
@@ -281,6 +317,12 @@ $('btnLogin').onclick = async ()=>{
     if(!r.ok) return showMsg($('msg'), r.error || 'Erro no login', false);
     setSession(r.token, r.user);
     refreshMenu();
+
+    if(r.user && r.user.mustChangePassword){
+      showMsg($('msg'), 'Você precisa trocar sua senha para continuar.', false);
+      return;
+    }
+
     await loadAll();
     showMsg($('msg'), 'Login OK.', true);
   }catch(e){
@@ -288,18 +330,35 @@ $('btnLogin').onclick = async ()=>{
   }
 };
 
+$('btnChangePass').onclick = async ()=>{
+  try{
+    const {token} = getSession();
+    if(!token) return showMsg($('msgPass'), 'Sem sessão. Faça login novamente.', false);
+
+    const newPassword = $('newPass').value;
+    const confirmPassword = $('newPass2').value;
+
+    const r = await apiPost({ action:'changePassword', token, newPassword, confirmPassword });
+    if(!r.ok) return showMsg($('msgPass'), r.error || 'Erro ao trocar senha.', false);
+
+    showMsg($('msgPass'), 'Senha alterada com sucesso. Faça login novamente.', true);
+    clearSession();
+    unlockAfterPasswordChange();
+    refreshMenu();
+    $('newPass').value='';
+    $('newPass2').value='';
+  }catch(e){
+    showMsg($('msgPass'), String(e), false);
+  }
+};
+$('btnChangePassLogout').onclick = doLogout;
+
 async function loadAll(){
   if(!TOKEN) return;
-
-  // load users
   await reloadUsers();
-  // load company
   await reloadCompany();
-  // load brokers
   await reloadBrokers();
-  // load config
   await reloadConfig();
-  // load tables list
   await reloadTables();
 }
 
@@ -460,7 +519,6 @@ function renderConfig(){
         </tr>
       `).join('')}
     </table>
-    <div class="mini" style="margin-top:8px">Para adicionar nova chave: edite direto na planilha ou me peça que eu adicione aqui também.</div>
   `;
   $('configTable').innerHTML = html;
 }
@@ -487,16 +545,11 @@ async function reloadTables(){
     sel.appendChild(opt);
   });
   showMsg($('msgTables'), 'Tabelas carregadas.', true);
-  // auto carregar primeira
   if(sel.options.length) loadOneTable(sel.value);
 }
 
 function loadOneTable(name){
-  CURRENT_TABLE_ROWS = (TABLES[name] || []).map(r=>({
-    min: r.min ?? '',
-    max: r.max ?? '',
-    fee: r.fee ?? ''
-  }));
+  CURRENT_TABLE_ROWS = (TABLES[name] || []).map(r=>({ min:r.min ?? '', max:r.max ?? '', fee:r.fee ?? '' }));
   renderTableEditor();
 }
 function renderTableEditor(){
@@ -514,7 +567,6 @@ function renderTableEditor(){
   `;
   $('tableEditor').innerHTML = html;
 
-  // bind
   document.querySelectorAll('#tableEditor input').forEach(inp=>{
     inp.oninput = ()=>{
       const i = Number(inp.dataset.i);
@@ -525,15 +577,8 @@ function renderTableEditor(){
 }
 
 $('btnTableLoad').onclick = ()=> loadOneTable($('t_name').value);
-
-$('btnAddRow').onclick = ()=>{
-  CURRENT_TABLE_ROWS.push({min:'', max:'', fee:''});
-  renderTableEditor();
-};
-$('btnDelRow').onclick = ()=>{
-  CURRENT_TABLE_ROWS.pop();
-  renderTableEditor();
-};
+$('btnAddRow').onclick = ()=>{ CURRENT_TABLE_ROWS.push({min:'',max:'',fee:''}); renderTableEditor(); };
+$('btnDelRow').onclick = ()=>{ CURRENT_TABLE_ROWS.pop(); renderTableEditor(); };
 
 $('btnTableSave').onclick = async ()=>{
   const tableName = $('t_name').value;
@@ -550,7 +595,7 @@ refreshMenu();
   if(ses.token){
     TOKEN = ses.token; USER = ses.user;
     refreshMenu();
-    if(USER && USER.role==='ADMIN'){
+    if(USER && USER.role==='ADMIN' && !USER.mustChangePassword){
       try{ await loadAll(); }catch(e){ showMsg($('msg'), String(e), false); }
     }
   }
