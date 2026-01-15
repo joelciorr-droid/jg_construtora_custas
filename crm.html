@@ -7,134 +7,284 @@
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <div class="container">
-    <div class="card no-print">
-      <h1>CRM | Funil de Leads</h1>
-      <div class="muted">Somente ADMIN. Visualize e atualize status, próxima ação e observações.</div>
-      <div class="hr"></div>
+<div class="container">
 
-      <div class="row row-3">
-        <div>
-          <label>Filtro Status</label>
-          <select id="fStatus">
-            <option value="">Todos</option>
-            <option>NOVO</option>
-            <option>CONTATO</option>
-            <option>DOCUMENTOS</option>
-            <option>SIMULACAO</option>
-            <option>ASSINATURA</option>
-            <option>OBRA</option>
-            <option>CONCLUIDO</option>
-            <option>PERDIDO</option>
-          </select>
-        </div>
-        <div>
-          <label>Filtro Corretor (email contém)</label>
-          <input id="fBroker" placeholder="ex: joao@" />
-        </div>
-        <div style="display:flex;align-items:flex-end;gap:10px">
-          <button class="btn" id="btnReload">Recarregar</button>
-          <a class="btn secondary" href="index.html">Voltar</a>
-        </div>
-      </div>
-
-      <div id="msg" style="margin-top:12px"></div>
+  <div class="card no-print" style="display:flex;gap:10px;align-items:center;justify-content:space-between">
+    <div style="display:flex;gap:10px;align-items:center">
+      <b>JG | CRM</b>
+      <span class="badge" id="whoMini"></span>
     </div>
-
-    <div class="card">
-      <h2>Leads</h2>
-      <div class="hr"></div>
-      <div id="table"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn secondary" href="index.html">Simulador</a>
+      <a class="btn secondary" href="crm.html">CRM</a>
+      <a class="btn secondary" id="adminLinkTop" href="admin.html" style="display:none">Admin/Config</a>
+      <button class="btn secondary" id="btnLogoutTop" style="display:none">Sair</button>
     </div>
   </div>
 
-  <script src="app.js"></script>
-  <script>
-    function showMsg(html, ok=true){
-      $('msg').innerHTML = '<div class="notice '+(ok?'ok':'err')+'">'+html+'</div>';
+  <div class="card no-print" id="loginCard">
+    <h2>Entrar</h2>
+    <div class="row row-2">
+      <div>
+        <label>E-mail</label>
+        <input id="email" type="email" autocomplete="username"/>
+      </div>
+      <div>
+        <label>Senha</label>
+        <input id="password" type="password" autocomplete="current-password"/>
+      </div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn" id="btnLogin">Entrar</button>
+      <span class="badge" id="who"></span>
+    </div>
+    <div id="msg" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <div class="no-print" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <label>Buscar</label>
+        <input id="q" placeholder="Nome, telefone, status..." />
+      </div>
+      <div>
+        <label>Status</label>
+        <select id="status">
+          <option value="">Todos</option>
+          <option value="NOVO">NOVO</option>
+          <option value="EM_ATENDIMENTO">EM_ATENDIMENTO</option>
+          <option value="PROPOSTA">PROPOSTA</option>
+          <option value="FECHADO">FECHADO</option>
+          <option value="PERDIDO">PERDIDO</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn" id="btnRefresh">Atualizar</button>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div id="tableWrap"></div>
+    <div id="msg2" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+let ALL = [];
+let LAST = [];
+let USER = null;
+
+function showMsg(el, txt, ok=true){
+  el.innerHTML = '<div class="notice '+(ok?'ok':'err')+'">'+txt+'</div>';
+}
+
+function refreshMenu(){
+  const {token,user} = getSession();
+  USER = user;
+  $('whoMini').textContent = token ? (user.name+' ('+user.role+')') : '';
+  $('adminLinkTop').style.display = (token && user.role==='ADMIN') ? 'inline-flex' : 'none';
+  $('btnLogoutTop').style.display = token ? 'inline-flex' : 'none';
+  $('loginCard').style.display = token ? 'none' : 'block';
+  $('who').textContent = token ? (user.name+' ('+user.role+')') : '';
+}
+
+function doLogout(){
+  clearSession();
+  refreshMenu();
+  showMsg($('msg'), 'Sessão encerrada.', true);
+  $('tableWrap').innerHTML = '';
+}
+
+$('btnLogoutTop').onclick = doLogout;
+
+$('btnLogin').onclick = async ()=>{
+  try{
+    const r = await apiPost({action:'login', email:$('email').value, password:$('password').value});
+    if(!r.ok) return showMsg($('msg'), r.error || 'Erro no login', false);
+    setSession(r.token, r.user);
+    refreshMenu();
+    await load();
+  }catch(e){
+    showMsg($('msg'), String(e), false);
+  }
+};
+
+function parseTS(x){
+  // backend pode salvar created_at; fallback: data_simulacao
+  const d = new Date(x);
+  return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+}
+
+function computeLastByLead(rows){
+  const map = new Map();
+  for(const r of rows){
+    const id = r.lead_id || (r.cliente_telefone || r.cliente_nome || 'SEM_ID');
+    const ts = parseTS(r.updated_at || r.created_at || r.data_simulacao || 0);
+    const prev = map.get(id);
+    if(!prev || ts >= prev._ts){
+      map.set(id, {...r, _ts: ts, lead_id: id});
     }
+  }
+  return Array.from(map.values()).sort((a,b)=> b._ts - a._ts);
+}
 
-    function ensureAdmin(){
-      const { token, user } = getSession();
-      if (!token || !user) { window.location.href = "index.html"; return null; }
-      if (user.role !== 'ADMIN') { showMsg('Acesso negado: apenas ADMIN.', false); return null; }
-      return { token, user };
+function filterRows(rows){
+  const q = $('q').value.trim().toLowerCase();
+  const st = $('status').value;
+
+  return rows.filter(r=>{
+    const hay = [
+      r.cliente_nome, r.cliente_telefone, r.status, r.cidade, r.tipo_financiamento
+    ].join(' ').toLowerCase();
+
+    if(st && (String(r.status||'').toUpperCase() !== st)) return false;
+    if(q && !hay.includes(q)) return false;
+    return true;
+  });
+}
+
+function rowBtn(label, onClick){
+  const b = document.createElement('button');
+  b.className = 'btn secondary';
+  b.textContent = label;
+  b.onclick = onClick;
+  return b;
+}
+
+function renderTable(rows){
+  const data = filterRows(rows);
+
+  const wrap = document.createElement('div');
+  const table = document.createElement('table');
+  table.className = 'table';
+  table.style.width = '100%';
+
+  const thead = document.createElement('thead');
+  thead.innerHTML = `
+    <tr>
+      <th>Data</th>
+      <th>Cliente</th>
+      <th>Telefone</th>
+      <th>Status</th>
+      <th>Cidade</th>
+      <th>Total</th>
+      <th>Financia</th>
+      <th>Ações</th>
+    </tr>`;
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+
+  for(const r of data){
+    const tr = document.createElement('tr');
+    const dt = r.data_simulacao || r.updated_at || r.created_at || '';
+    tr.innerHTML = `
+      <td>${formatDateBR(dt)}</td>
+      <td>${r.cliente_nome || '—'}</td>
+      <td>${r.cliente_telefone || '—'}</td>
+      <td>${r.status || 'NOVO'}</td>
+      <td>${r.cidade || '—'}</td>
+      <td style="text-align:right">${formatBRL(r.total_estimado || 0)}</td>
+      <td style="text-align:right">${formatBRL(r.valor_a_financiar || 0)}</td>
+      <td></td>
+    `;
+
+    const tdActions = tr.querySelector('td:last-child');
+    tdActions.style.whiteSpace = 'nowrap';
+
+    tdActions.appendChild(rowBtn('Abrir no simulador', ()=>{
+      setLeadToLoad(r);
+      location.href = 'index.html';
+    }));
+
+    tdActions.appendChild(rowBtn('Ver histórico', ()=>{
+      renderHistory(r.lead_id);
+    }));
+
+    tbody.appendChild(tr);
+  }
+
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+
+  $('tableWrap').innerHTML = '';
+  $('tableWrap').appendChild(wrap);
+}
+
+function renderHistory(leadId){
+  const hist = ALL.filter(r => (r.lead_id || r.cliente_telefone || r.cliente_nome) === leadId)
+                  .sort((a,b)=> parseTS(b.updated_at || b.created_at || b.data_simulacao) - parseTS(a.updated_at || a.created_at || a.data_simulacao));
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `<h3 style="margin:0 0 10px 0">Histórico do lead</h3>`;
+  const table = document.createElement('table');
+  table.className = 'table';
+  table.style.width = '100%';
+  table.innerHTML = `
+    <tr>
+      <th>Data</th><th>Status</th><th>Total</th><th>Financia</th><th>Observações</th><th>Ação</th>
+    </tr>
+  `;
+
+  for(const r of hist){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${formatDateBR(r.data_simulacao || r.updated_at || r.created_at || '')}</td>
+      <td>${r.status || '—'}</td>
+      <td style="text-align:right">${formatBRL(r.total_estimado || 0)}</td>
+      <td style="text-align:right">${formatBRL(r.valor_a_financiar || 0)}</td>
+      <td>${(r.notes || '').slice(0,80)}</td>
+      <td></td>
+    `;
+    const td = tr.querySelector('td:last-child');
+    td.appendChild(rowBtn('Abrir', ()=>{
+      setLeadToLoad(r);
+      location.href = 'index.html';
+    }));
+    table.appendChild(tr);
+  }
+
+  wrap.appendChild(table);
+  $('tableWrap').innerHTML = '';
+  $('tableWrap').appendChild(wrap);
+}
+
+async function load(){
+  const {token} = getSession();
+  if(!token) return;
+
+  try{
+    const r = await listLeads(token);
+    if(!r.ok) return showMsg($('msg2'), r.error || 'Erro ao listar leads', false);
+
+    // Esperado: r.leads = array
+    ALL = r.leads || [];
+    LAST = computeLastByLead(ALL);
+
+    renderTable(LAST);
+    showMsg($('msg2'), `Leads carregados: ${LAST.length} (mostrando último por lead).`, true);
+  }catch(e){
+    showMsg($('msg2'), String(e), false);
+  }
+}
+
+$('btnRefresh').onclick = load;
+$('q').oninput = ()=> renderTable(LAST);
+$('status').onchange = ()=> renderTable(LAST);
+
+refreshMenu();
+(async function boot(){
+  const {token} = getSession();
+  if(token){
+    try{
+      await load();
+    }catch(_){
+      doLogout();
     }
-
-    function esc(s){ return String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
-
-    async function load(){
-      const sess = ensureAdmin();
-      if (!sess) return;
-
-      const r = await listLeads(sess.token);
-      if (!r.ok) return showMsg(r.error||'Erro ao listar leads', false);
-
-      const status = $('fStatus').value.trim();
-      const broker = $('fBroker').value.trim().toLowerCase();
-
-      const rows = r.leads.filter(l=>{
-        const okS = !status || String(l.status||'') === status;
-        const okB = !broker || String(l.broker_email||'').toLowerCase().includes(broker);
-        return okS && okB;
-      });
-
-      $('table').innerHTML = `
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Data</th><th>Corretor</th><th>Cliente</th><th>Telefone</th>
-              <th>Status</th><th>Próxima ação</th><th>Obs</th><th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows.map(l=>`
-              <tr>
-                <td>${esc(l.created_at)}</td>
-                <td>${esc(l.broker_email)}</td>
-                <td>${esc(l.cliente_nome)}</td>
-                <td>${esc(l.cliente_telefone)}</td>
-                <td>
-                  <select data-row="${l._row}" data-field="status">
-                    ${['NOVO','CONTATO','DOCUMENTOS','SIMULACAO','ASSINATURA','OBRA','CONCLUIDO','PERDIDO'].map(s=>{
-                      const sel = (String(l.status||'')===s)?'selected':'';
-                      return `<option ${sel}>${s}</option>`;
-                    }).join('')}
-                  </select>
-                </td>
-                <td><input data-row="${l._row}" data-field="next_action_at" value="${esc(l.next_action_at)}" placeholder="ex: 2026-01-20"/></td>
-                <td><input data-row="${l._row}" data-field="notes" value="${esc(l.notes)}" placeholder="observações"/></td>
-                <td><button class="btn secondary" onclick="save(${l._row})">Salvar</button></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-      showMsg(`Carregado: ${rows.length} lead(s).`, true);
-    }
-
-    async function save(rowNumber){
-      const sess = ensureAdmin();
-      if (!sess) return;
-
-      const fields = document.querySelectorAll(`[data-row="${rowNumber}"]`);
-      const patch = {};
-      fields.forEach(el=>{
-        patch[el.dataset.field] = el.value;
-      });
-
-      const r = await updateLead(sess.token, rowNumber, patch);
-      if (!r.ok) return showMsg(r.error||'Erro ao salvar', false);
-
-      showMsg('Atualizado com sucesso.', true);
-    }
-
-    window.save = save;
-
-    $('btnReload').onclick = load;
-    $('fStatus').onchange = load;
-
-    (function(){ load(); })();
-  </script>
+  }
+})();
+</script>
 </body>
 </html>
