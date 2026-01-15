@@ -19,12 +19,15 @@ function num(v){
     const lastComma = s.lastIndexOf(',');
     const lastDot = s.lastIndexOf('.');
     if (lastComma > lastDot) {
-      s = s.replace(/\./g,'').replace(',', '.'); // 1.234,56 -> 1234.56
+      // 1.234,56 -> 1234.56
+      s = s.replace(/\./g,'').replace(',', '.');
     } else {
-      s = s.replace(/,/g,''); // 1,234.56 -> 1234.56
+      // 1,234.56 -> 1234.56
+      s = s.replace(/,/g,'');
     }
   } else if (hasComma && !hasDot) {
-    s = s.replace(',', '.'); // 0,025 -> 0.025
+    // 0,025 -> 0.025
+    s = s.replace(',', '.');
   }
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
@@ -80,19 +83,14 @@ function feeByRange(tableArr, x){
   return 0;
 }
 
-function rateByRange(tableArr, x){
-  // retorna a "tarifa" (ex.: 3.73) da faixa
-  return feeByRange(tableArr, x);
-}
-
+// faixa fixa (retorna fee)
 function amountByRangeFlat(tableArr, x){
-  // retorna valor fixo pela faixa
   return feeByRange(tableArr, x);
 }
 
+// faixa por m² (retorna (fee_por_m2 * area))
 function amountByRangePerM2(tableArr, area){
-  // retorna tarifa por m² * área
-  const rate = rateByRange(tableArr, area);
+  const rate = feeByRange(tableArr, area);
   return rate * num(area);
 }
 
@@ -105,46 +103,63 @@ function calcTotal(payload, config){
   const m2C = num(config.PADRAO_C_M2);
   const m2B = num(config.PADRAO_B_M2);
   const m2A = num(config.PADRAO_A_M2);
-
   const lajeAd = num(config.LAJE_ADIC_M2);
 
   const valorM2 = (padrao === 'C' ? m2C : (padrao === 'B' ? m2B : m2A));
   const custoBase = area * valorM2;
   const laje = (payload.laje === 'SIM') ? (area * lajeAd) : 0;
 
-  // Projetos
+  // Projetos (somente um deve entrar)
   const projSem = (payload.projeto === 'SEM_ESTRUTURAL') ? (area * num(config.PROJ_SEM_ESTR_M2)) : 0;
   const projCom = (payload.projeto === 'COM_ESTRUTURAL') ? (area * num(config.PROJ_COM_ESTR_M2)) : 0;
 
-  // Financiamento
-  const valorFin = num(payload.valor_financiado);
-  const taxaFin = (payload.tipo_financiamento === 'MCMV') ? num(config.TAXA_FIN_MCMV) : num(config.TAXA_FIN_OUTROS);
-  const taxaFinR = valorFin * taxaFin;
+  // Valor da obra (para exibir / averbação)
+  const valorObra = custoBase + laje;
 
-  // Terreno / ITBI
-  const valorTerreno = num(payload.valor_terreno);
+  // Terreno entra quando: Terreno+Construção e não é terreno próprio
   const terrenoProprio = payload.terreno_proprio === 'SIM';
-  const construcaoApenas = payload.operacao === 'CONSTRUCAO_APENAS';
+  const operacaoTerrenoConstrucao = payload.operacao === 'TERRENO_E_CONSTRUCAO';
+  const valorTerrenoCalc = (!terrenoProprio && operacaoTerrenoConstrucao) ? num(payload.valor_terreno) : 0;
 
+  // Total base do imóvel (Terreno + Construção) => SEMPRE base do financiamento (como você definiu)
+  const totalTerrenoConstrucao = valorTerrenoCalc + valorObra;
+
+  // Simulador Caixa
+  const entrada = num(payload.entrada);
+  const subsidio = num(payload.subsidio);
+  const porFora = num(payload.valor_por_fora);
+
+  let valorAFinanciar = totalTerrenoConstrucao - entrada - subsidio - porFora;
+  if (valorAFinanciar < 0) valorAFinanciar = 0;
+
+  // Se o corretor também preencheu "valor financiado" manualmente, usamos o calculado como prioridade
+  const valorFinInput = num(payload.valor_financiado);
+  const valorFinBase = valorAFinanciar > 0 ? valorAFinanciar : valorFinInput;
+
+  // Taxa de financiamento (porcentual do valor financiado)
+  const taxaFin = (payload.tipo_financiamento === 'MCMV') ? num(config.TAXA_FIN_MCMV) : num(config.TAXA_FIN_OUTROS);
+  const taxaFinR = valorFinBase * taxaFin;
+
+  // ITBI (apenas quando Terreno+Construção e NÃO é terreno próprio)
   let itbi = 0;
-  if (!terrenoProprio && !construcaoApenas){
+  if (!terrenoProprio && operacaoTerrenoConstrucao){
     if (payload.cidade === 'BOA_VISTA'){
       const limiteSM = num(config.LIMITE_ISENCAO_SM);
       const salarioMin = num(config.SALARIO_MINIMO);
       const renda = num(payload.renda_bruta_familiar);
       const isento = renda > 0 && renda <= (limiteSM * salarioMin);
-      itbi = isento ? 0 : (valorTerreno * num(config.ITBI_BV_TAXA));
+      itbi = isento ? 0 : (valorTerrenoCalc * num(config.ITBI_BV_TAXA));
     } else {
-      itbi = valorTerreno * num(config.ITBI_OUTROS_TAXA);
+      itbi = valorTerrenoCalc * num(config.ITBI_OUTROS_TAXA);
     }
   }
 
   // Vistoria (aplica/nao)
   const vistoria = (payload.vistoria_aplica === 'SIM') ? num(config.VISTORIA_CAIXA_FIXO) : 0;
 
-  // TAO
+  // TAO (MCMV: % do financiado; Outros: fixo)
   const tao = (payload.tipo_financiamento === 'MCMV')
-    ? (valorFin * num(config.TAO_MCMV))
+    ? (valorFinBase * num(config.TAO_MCMV))
     : num(config.TAO_OUTROS_FIXO);
 
   // Calçada (Boa Vista, se não tem)
@@ -153,55 +168,83 @@ function calcTotal(payload, config){
     const ml = num(payload.calcada_metros_lineares);
     calcada = ml * num(config.CALCADA_PRECO_METRO_LINEAR);
   }
-  
+
   // ===== Tabelas por faixa =====
   const t = FEE_TABLES || {};
-  
-  // CREA = valor fixo por faixa de área (ARTs)
+
+  // CREA = valor fixo por faixa de área
   const crea = amountByRangeFlat(t['CREA_Faixas_Area'], area);
-  
-  // ALVARÁ = tarifa por m² (faixa define o preço do m²)
+
+  // ALVARÁ = tarifa por m² × área (faixa define o preço do m²)
   const alvara = (payload.cidade === 'BOA_VISTA')
     ? amountByRangePerM2(t['Alvara_BV_Faixas_Area'], area)
     : (payload.cidade === 'CANTA')
       ? amountByRangePerM2(t['Alvara_Canta_Faixas_Area'], area)
       : 0;
-  
-  // HABITE-SE = tarifa por m² (faixa define o preço do m²)
+
+  // Registro Alienação = valor fixo por faixa do valor financiado
+  const regAlienacao = amountByRangeFlat(t['Registro_Alienacao_Faixas_Valor'], valorFinBase);
+
+  // Habite-se = tarifa por m² × área
   const habite = (payload.cidade === 'BOA_VISTA')
     ? amountByRangePerM2(t['HabiteSe_BV_Faixas_Area'], area)
     : (payload.cidade === 'CANTA')
       ? amountByRangePerM2(t['HabiteSe_Canta_Faixas_Area'], area)
       : 0;
-  
-  // Registro Alienação = valor fixo por faixa de valor financiado
-  const regAlienacao = amountByRangeFlat(t['Registro_Alienacao_Faixas_Valor'], valorFin);
-  
-  // Averbação = valor fixo por faixa de "valor da obra" (não do financiado)
-  const valorObra = custoBase + laje; // base da obra (sem taxas/documentos)
-  const averbacao = amountByRangeFlat(t['Registro_Averbacao_Faixas_Valor'], valorObra);
-  
-  // CNO (config simples): só > 70m²
+
+  // CNO (após Habite-se, só se >70m²)
   let cno = 0;
   if (area > 70){
-    const cnoPerc = num(config.CNO_PERC); // ex 0.015
-    const cnoFixo = num(config.CNO_FIXO); // ex 0
-    cno = cnoPerc > 0 ? (valorFin * cnoPerc) : cnoFixo;
+    const cnoPerc = num(config.CNO_PERC); // ex: 0.015
+    const cnoFixo = num(config.CNO_FIXO); // ex: 0
+    cno = cnoPerc > 0 ? (valorFinBase * cnoPerc) : cnoFixo;
   }
-  
-  const total = custoBase + laje + projSem + projCom
-    + taxaFinR + itbi + vistoria + tao + calcada
-    + crea + alvara + habite + regAlienacao + averbacao + cno;
+
+  // Averbação = valor fixo por faixa do VALOR DA OBRA (não do financiado)
+  const averbacao = amountByRangeFlat(t['Registro_Averbacao_Faixas_Valor'], valorObra);
+
+  // Total geral (custas/documentos + construção/projetos)
+  const totalCustas = (
+    projSem + projCom +
+    crea + alvara + vistoria + taxaFinR + itbi + regAlienacao +
+    tao + calcada + habite + cno + averbacao
+  );
+
+  const totalGeral = valorObra + valorTerrenoCalc + totalCustas;
 
   return {
-    custoBase, laje, projSem, projCom,
-    taxaFinR, itbi, vistoria, tao, calcada,
-    crea, alvara, habite, regAlienacao, averbacao, cno,
-    total
+    // bases
+    area,
+    valorM2,
+    custoBase,
+    laje,
+    projSem,
+    projCom,
+    valorObra,
+    valorTerrenoCalc,
+    totalTerrenoConstrucao,
+
+    // financiamento
+    entrada,
+    subsidio,
+    porFora,
+    valorAFinanciar,
+    valorFinBase,
+
+    // custas/documentos
+    crea,
+    alvara,
+    vistoria,
+    taxaFinR,
+    itbi,
+    regAlienacao,
+    tao,
+    calcada,
+    habite,
+    cno,
+    averbacao,
+
+    totalCustas,
+    totalGeral
   };
 }
-
-
-
-
-
