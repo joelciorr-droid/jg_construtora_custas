@@ -144,20 +144,61 @@ async function listLeads(token, filter){ return apiPost({ action:"listLeads", to
 let FEE_TABLES = null;
 
 // faixa fixa (fee)
+function pickAny(obj, keys){
+  if(!obj || typeof obj !== "object") return undefined;
+  for(const k of keys){
+    if(Object.prototype.hasOwnProperty.call(obj, k)) return obj[k];
+  }
+  // tenta case-insensitive
+  const lowerMap = {};
+  for(const kk of Object.keys(obj)) lowerMap[kk.toLowerCase()] = obj[kk];
+  for(const k of keys){
+    const v = lowerMap[String(k).toLowerCase()];
+    if(v !== undefined) return v;
+  }
+  return undefined;
+}
+
+function normalizeRow(r){
+  // aceita:
+  // 1) {min,max,fee}
+  // 2) {Min,Max,Fee} ou {MIN,MAX,FEE}
+  // 3) {minimo,maximo,valor} (qualquer variação)
+  // 4) array [min,max,fee]
+  if(Array.isArray(r)){
+    return { min: r[0], max: r[1], fee: r[2] };
+  }
+  if(!r || typeof r !== "object") return { min: 0, max: 0, fee: 0 };
+
+  const min = pickAny(r, ["min","Min","MIN","minimo","Minimo","MINIMO"]);
+  const max = pickAny(r, ["max","Max","MAX","maximo","Maximo","MAXIMO"]);
+  const fee = pickAny(r, ["fee","Fee","FEE","valor","Valor","VALOR","value","Value","VALUE"]);
+
+  return { min, max, fee };
+}
+
 function feeByRange(tableArr, x){
   if(!Array.isArray(tableArr)) return 0;
   const v = num(x);
-  for(const r of tableArr){
+
+  for(const raw of tableArr){
+    const r = normalizeRow(raw);
     const min = num(r.min);
     const max = num(r.max);
     const fee = num(r.fee);
+
+    // ignora linhas inválidas
+    if(!Number.isFinite(min) || !Number.isFinite(max)) continue;
+
     if (v >= min && v <= max) return fee;
   }
   return 0;
 }
+
 function amountByRangeFlat(tableArr, x){
   return feeByRange(tableArr, x);
 }
+
 function amountByRangePerM2(tableArr, area){
   const rate = feeByRange(tableArr, area);
   return rate * num(area);
@@ -406,3 +447,4 @@ function calcTotal(payload, config){
     totalGeral
   };
 }
+
