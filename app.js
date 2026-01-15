@@ -1,106 +1,149 @@
+// ======================================================
+//  JG SIMULADOR - app.js (COMPLETO)
+//  Cole este arquivo inteiro no seu app.js do GitHub
+// ======================================================
+
+// 1) COLE AQUI a URL do WebApp do Apps Script (termina com /exec)
 const API_URL = "https://script.google.com/macros/s/AKfycbyBV_4JklA8sfMbNWOnDMXxmBqvcKyb60MxOKb8X2-CBqnMW5jK7JMiVSyNCR89_O_yYQ/exec";
 
+// ===== util DOM =====
 function $(id){ return document.getElementById(id); }
 
-// num() robusto (pt-BR e ponto decimal)
+// ===== números e moeda =====
 function num(v){
   if (v === null || v === undefined) return 0;
-  if (typeof v === 'number') return v;
+  if (typeof v === "number") return v;
 
   let s = String(v).trim();
   if (!s) return 0;
 
-  s = s.replace(/\s/g,'').replace('%','');
+  s = s.replace(/\s/g, "").replace("%", "");
 
-  const hasComma = s.includes(',');
-  const hasDot = s.includes('.');
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
 
   if (hasComma && hasDot) {
-    const lastComma = s.lastIndexOf(',');
-    const lastDot = s.lastIndexOf('.');
+    const lastComma = s.lastIndexOf(",");
+    const lastDot = s.lastIndexOf(".");
     if (lastComma > lastDot) {
       // 1.234,56 -> 1234.56
-      s = s.replace(/\./g,'').replace(',', '.');
+      s = s.replace(/\./g, "").replace(",", ".");
     } else {
       // 1,234.56 -> 1234.56
-      s = s.replace(/,/g,'');
+      s = s.replace(/,/g, "");
     }
   } else if (hasComma && !hasDot) {
     // 0,025 -> 0.025
-    s = s.replace(',', '.');
+    s = s.replace(",", ".");
   }
+
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 }
 
 function formatBRL(v){
-  const n = Number(num(v)||0);
-  return n.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+  const n = Number(num(v) || 0);
+  return n.toLocaleString("pt-BR", { style:"currency", currency:"BRL" });
 }
 
 function formatPct(p){
-  return (num(p)*100).toLocaleString('pt-BR', { maximumFractionDigits: 3 }) + '%';
+  const n = num(p) * 100;
+  return n.toLocaleString("pt-BR", { maximumFractionDigits: 2 }) + "%";
 }
 
-function formatDateBR(d){
-  try{
-    const dt = (d instanceof Date) ? d : new Date(d);
-    if (Number.isNaN(dt.getTime())) return '—';
-    return dt.toLocaleDateString('pt-BR');
-  }catch(_){ return '—'; }
-}
-
-function addDays(date, days){
-  const d = new Date(date.getTime());
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
+// ===== datas =====
 function todayISO(){
   const d = new Date();
   const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,'0');
-  const dd = String(d.getDate()).padStart(2,'0');
-  return `${y}-${m}-${dd}`;
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+function addDaysISO(iso, days){
+  const d = new Date(iso || todayISO());
+  d.setDate(d.getDate() + Number(days||0));
+  return d.toISOString().slice(0,10);
+}
+function formatDateBR(x){
+  if(!x) return "—";
+  const d = new Date(x);
+  if(Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("pt-BR");
 }
 
-// POST sem preflight (evita CORS)
-async function apiPost(payload){
-  const formData = new URLSearchParams();
-  formData.append('data', JSON.stringify(payload));
-  const res = await fetch(API_URL, { method:'POST', body: formData });
-  const txt = await res.text();
-  return JSON.parse(txt);
+// ===== uuid simples =====
+function uuid(){
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c=>{
+    const r = Math.random()*16|0;
+    const v = c==="x" ? r : (r&0x3|0x8);
+    return v.toString(16);
+  });
 }
 
-// sessão
+// ===== sessão =====
 function setSession(token, user){
-  localStorage.setItem('token', token);
-  localStorage.setItem('user', JSON.stringify(user));
+  localStorage.setItem("token", token);
+  localStorage.setItem("user", JSON.stringify(user));
 }
 function getSession(){
-  const token = localStorage.getItem('token');
-  const userRaw = localStorage.getItem('user');
+  const token = localStorage.getItem("token");
+  const userRaw = localStorage.getItem("user");
   return { token, user: userRaw ? JSON.parse(userRaw) : null };
 }
 function clearSession(){
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
 }
 
-// ======= API helpers =======
-async function getConfig(token){ return apiPost({ action:'getConfig', token }); }
-async function getCompany(token){ return apiPost({ action:'getCompany', token }); }
-async function getBroker(token){ return apiPost({ action:'getBroker', token }); }
+// ===== "passar lead do CRM pro simulador" =====
+const LEAD_TO_LOAD_KEY = "jg_lead_to_load";
+function setLeadToLoad(lead){
+  localStorage.setItem(LEAD_TO_LOAD_KEY, JSON.stringify(lead));
+}
+function getLeadToLoad(){
+  const raw = localStorage.getItem(LEAD_TO_LOAD_KEY);
+  return raw ? JSON.parse(raw) : null;
+}
+function clearLeadToLoad(){
+  localStorage.removeItem(LEAD_TO_LOAD_KEY);
+}
 
-// CRM
-async function listLeads(token){ return apiPost({ action:'listLeads', token }); } // backend deve filtrar por perfil
-async function saveLead(token, payload){ return apiPost({ action:'saveLead', token, payload }); }
+// ===== API POST (sem preflight) =====
+async function apiPost(payload){
+  if(!API_URL || API_URL.includes("COLE_AQUI")){
+    throw new Error("API_URL não configurada no app.js (cole a URL do WebApp /exec).");
+  }
 
-// tabelas por faixa
+  const form = new URLSearchParams();
+  form.append("data", JSON.stringify(payload));
+
+  const res = await fetch(API_URL, { method:"POST", body: form });
+
+  // Se o res nem vem (rede/URL), cai no catch do fetch (Failed to fetch)
+  const txt = await res.text();
+
+  // Se vier HTML (erro de permissão), isso quebra JSON:
+  try {
+    return JSON.parse(txt);
+  } catch (e){
+    // ajuda debug
+    throw new Error("Resposta não-JSON do WebApp. Verifique implantação/permissões. Trecho: " + txt.slice(0,120));
+  }
+}
+
+// ===== endpoints esperados =====
+async function getConfig(token){ return apiPost({ action:"getConfig", token }); }
+async function getCompany(token){ return apiPost({ action:"getCompany", token }); }
+async function getBroker(token){ return apiPost({ action:"getBroker", token }); }
+async function getFeeTables(token){ return apiPost({ action:"getFeeTables", token }); }
+
+async function saveLead(token, payload){ return apiPost({ action:"saveLead", token, payload }); }
+async function listLeads(token, filter){ return apiPost({ action:"listLeads", token, filter: filter||{} }); }
+
+// ===== tabelas carregadas =====
 let FEE_TABLES = null;
-async function getFeeTables(token){ return apiPost({ action:'getFeeTables', token }); }
 
+// faixa fixa (fee)
 function feeByRange(tableArr, x){
   if(!Array.isArray(tableArr)) return 0;
   const v = num(x);
@@ -112,79 +155,91 @@ function feeByRange(tableArr, x){
   }
   return 0;
 }
-function amountByRangeFlat(tableArr, x){ return feeByRange(tableArr, x); }
+function amountByRangeFlat(tableArr, x){
+  return feeByRange(tableArr, x);
+}
 function amountByRangePerM2(tableArr, area){
   const rate = feeByRange(tableArr, area);
   return rate * num(area);
 }
 
-// ==== Padrões (descrição transparente) ====
-function getPadraoInfo(padrao, config){
-  const map = {
-    C: {
-      label: 'Padrão Básico (Tipo C)',
-      desc: 'Piso cerâmico, forro em PVC, laterais e fundo externo lixado e pintado.',
+// ===== Padrões (descrição) =====
+function padraoInfo(padrao, config){
+  if(padrao === "C"){
+    return {
+      label: "Padrão Básico (Tipo C)",
       m2: num(config.PADRAO_C_M2),
-    },
-    B: {
-      label: 'Padrão Intermediário (Tipo B)',
-      desc: 'Porcelanato e gesso acartonado OU gesso e emassado externo (laterais/fundo) OU porcelanato e emassado externo.',
+      desc: "Piso cerâmico, forro em PVC, laterais e fundo externo apenas lixado e pintado."
+    };
+  }
+  if(padrao === "B"){
+    return {
+      label: "Padrão Intermediário (Tipo B)",
       m2: num(config.PADRAO_B_M2),
-    },
-    A: {
-      label: 'Padrão Normal (Tipo A)',
-      desc: 'Porcelanato, forro em gesso acartonado, emassada por dentro e por fora.',
-      m2: num(config.PADRAO_A_M2),
-    }
+      desc: "Piso em porcelanato e forro em gesso acartonado OU gesso + emassamento externo parcial, conforme especificação."
+    };
+  }
+  return {
+    label: "Padrão Normal (Tipo A)",
+    m2: num(config.PADRAO_A_M2),
+    desc: "Piso em porcelanato, forro em gesso acartonado e toda emassada dentro e fora."
   };
-  return map[padrao] || map.A;
 }
 
-// ======= CÁLCULO COMPLETO =======
+// ======================================================
+//  CÁLCULO PRINCIPAL
+// ======================================================
 function calcTotal(payload, config){
   const area = num(payload.area_m2);
   const padrao = payload.padrao;
 
-  const padraoInfo = getPadraoInfo(padrao, config);
+  const pInfo = padraoInfo(padrao, config);
 
-  // Laje
-  const temLaje = (payload.laje === 'SIM');
+  // base construção
+  const custoBase = area * pInfo.m2;
+
+  // laje
   const lajeAd = num(config.LAJE_ADIC_M2);
+  const temLaje = payload.laje === "SIM";
   const laje = temLaje ? (area * lajeAd) : 0;
 
-  // Construção base
-  const custoBase = area * padraoInfo.m2;
-
-  // Regra: sem laje => projeto SEM estrutural; com laje => projeto COM estrutural
-  const projetoTipo = temLaje ? 'COM_ESTRUTURAL' : 'SEM_ESTRUTURAL';
-  const projetoRateM2 = (projetoTipo === 'COM_ESTRUTURAL') ? num(config.PROJ_COM_ESTR_M2) : num(config.PROJ_SEM_ESTR_M2);
+  // projeto AUTOMÁTICO:
+  // sem laje -> sem estrutural
+  // com laje -> com estrutural
+  const projetoTipo = temLaje ? "COM_ESTRUTURAL" : "SEM_ESTRUTURAL";
+  const projetoRateM2 = (projetoTipo === "COM_ESTRUTURAL")
+    ? num(config.PROJ_COM_ESTR_M2)
+    : num(config.PROJ_SEM_ESTR_M2);
   const projetoValor = area * projetoRateM2;
 
-  // Valor da obra (para exibir / averbação)
+  // valor obra para averbação
   const valorObra = custoBase + laje;
 
-  // Terreno (Terreno+Construção e não próprio)
-  const terrenoProprio = payload.terreno_proprio === 'SIM';
-  const operacaoTerrenoConstrucao = payload.operacao === 'TERRENO_E_CONSTRUCAO';
+  // terreno
+  const terrenoProprio = payload.terreno_proprio === "SIM";
+  const operacaoTerrenoConstrucao = payload.operacao === "TERRENO_E_CONSTRUCAO";
   const valorTerrenoCalc = (!terrenoProprio && operacaoTerrenoConstrucao) ? num(payload.valor_terreno) : 0;
 
-  // Total do imóvel (Terreno + Construção) = BASE SEMPRE para o cálculo do financiamento (como você definiu)
+  // total do imóvel (sempre base do financiamento)
   const totalTerrenoConstrucao = valorTerrenoCalc + valorObra;
 
-  // Simulador Caixa
+  // simulador caixa
   const entrada = num(payload.entrada);
   const subsidio = num(payload.subsidio);
   const porFora = num(payload.valor_por_fora);
 
   let valorAFinanciar = totalTerrenoConstrucao - entrada - subsidio - porFora;
-  if (valorAFinanciar < 0) valorAFinanciar = 0;
+  if(valorAFinanciar < 0) valorAFinanciar = 0;
 
-  // Se usuário preencheu "valor_financiado", usamos como fallback
+  // fallback: valor financiado digitado manualmente (se não tiver calculado)
   const valorFinInput = num(payload.valor_financiado);
   const valorFinBase = (valorAFinanciar > 0) ? valorAFinanciar : valorFinInput;
 
-  // Taxa financiamento (MCMV 2,5% / Outros 2%)
-  const taxaFinPerc = (payload.tipo_financiamento === 'MCMV') ? num(config.TAXA_FIN_MCMV) : num(config.TAXA_FIN_OUTROS);
+  // vistoria CAIXA - agora sempre entra
+  const vistoria = num(config.VISTORIA_CAIXA_FIXO);
+
+  // taxa financiamento (% do financiado)
+  const taxaFinPerc = (payload.tipo_financiamento === "MCMV") ? num(config.TAXA_FIN_MCMV) : num(config.TAXA_FIN_OUTROS);
   const taxaFinR = valorFinBase * taxaFinPerc;
 
   // ITBI
@@ -193,158 +248,161 @@ function calcTotal(payload, config){
   let itbiPercAplicada = 0;
 
   if (!terrenoProprio && operacaoTerrenoConstrucao){
-    if (payload.cidade === 'BOA_VISTA'){
-      const limiteSM = num(config.LIMITE_ISENCAO_SM);    // 7
-      const salarioMin = num(config.SALARIO_MINIMO);     // vigente
+    if (payload.cidade === "BOA_VISTA"){
+      const limiteSM = num(config.LIMITE_ISENCAO_SM);     // 7
+      const salarioMin = num(config.SALARIO_MINIMO);      // valor atual
       const renda = num(payload.renda_bruta_familiar);
-      itbiIsentoBV = (renda > 0 && renda <= (limiteSM * salarioMin));
-      itbiPercAplicada = num(config.ITBI_BV_TAXA);       // 0.015, por exemplo
-      itbi = itbiIsentoBV ? 0 : (valorTerrenoCalc * itbiPercAplicada);
+
+      const isento = renda > 0 && renda <= (limiteSM * salarioMin);
+      if(isento){
+        itbi = 0;
+        itbiIsentoBV = true;
+      } else {
+        itbiPercAplicada = num(config.ITBI_BV_TAXA);      // 0.015
+        itbi = valorTerrenoCalc * itbiPercAplicada;
+      }
     } else {
-      itbiPercAplicada = num(config.ITBI_OUTROS_TAXA);   // 0.015
+      itbiPercAplicada = num(config.ITBI_OUTROS_TAXA);    // 0.015
       itbi = valorTerrenoCalc * itbiPercAplicada;
     }
   }
 
-  // Vistoria (automática sempre)
-  const vistoria = num(config.VISTORIA_CAIXA_FIXO);
-
-  // TAO (MCMV: % financiado; Outros: fixo 1600)
-  const taoPerc = num(config.TAO_MCMV);
-  const taoFixo = num(config.TAO_OUTROS_FIXO);
-  const tao = (payload.tipo_financiamento === 'MCMV') ? (valorFinBase * taoPerc) : taoFixo;
+  // TAO
+  const taoPerc = num(config.TAO_MCMV);           // 0.015
+  const taoFixo = num(config.TAO_OUTROS_FIXO);    // 1600
+  const tao = (payload.tipo_financiamento === "MCMV")
+    ? (valorFinBase * taoPerc)
+    : taoFixo;
 
   // Calçada
   const calcadaPrecoML = num(config.CALCADA_PRECO_METRO_LINEAR);
   let calcada = 0;
-  if (payload.cidade === 'BOA_VISTA' && payload.possui_calcada === 'NAO'){
+  if(payload.cidade === "BOA_VISTA" && payload.possui_calcada === "NAO"){
     const ml = num(payload.calcada_metros_lineares);
     calcada = ml * calcadaPrecoML;
   }
 
-  // ===== Tabelas por faixa =====
+  // ===== tabelas por faixa =====
   const t = FEE_TABLES || {};
-  const crea = amountByRangeFlat(t['CREA_Faixas_Area'], area);
 
-  // ALVARÁ = tarifa por m² × área
-  const alvaraRate = (payload.cidade === 'BOA_VISTA')
-    ? feeByRange(t['Alvara_BV_Faixas_Area'], area)
-    : (payload.cidade === 'CANTA')
-      ? feeByRange(t['Alvara_Canta_Faixas_Area'], area)
-      : 0;
+  // CREA faixa por área (fixo)
+  const crea = amountByRangeFlat(t["CREA_Faixas_Area"], area);
+
+  // ALVARÁ tarifa/m² × área
+  const alvaraRate = feeByRange(
+    payload.cidade === "BOA_VISTA" ? t["Alvara_BV_Faixas_Area"] :
+    payload.cidade === "CANTA" ? t["Alvara_Canta_Faixas_Area"] :
+    null,
+    area
+  );
   const alvara = alvaraRate * area;
 
-  // Registro Alienação = faixa por valor financiado
-  const regAlienacao = amountByRangeFlat(t['Registro_Alienacao_Faixas_Valor'], valorFinBase);
+  // Registro Alienação por faixa do financiado
+  const regAlienacao = amountByRangeFlat(t["Registro_Alienacao_Faixas_Valor"], valorFinBase);
 
-  // Habite-se = tarifa por m² × área
-  const habiteRate = (payload.cidade === 'BOA_VISTA')
-    ? feeByRange(t['HabiteSe_BV_Faixas_Area'], area)
-    : (payload.cidade === 'CANTA')
-      ? feeByRange(t['HabiteSe_Canta_Faixas_Area'], area)
-      : 0;
+  // Habite-se tarifa/m² × área
+  const habiteRate = feeByRange(
+    payload.cidade === "BOA_VISTA" ? t["HabiteSe_BV_Faixas_Area"] :
+    payload.cidade === "CANTA" ? t["HabiteSe_Canta_Faixas_Area"] :
+    null,
+    area
+  );
   const habite = habiteRate * area;
 
-  // CNO (após Habite-se, só se >70m²)
+  // CNO só se > 70m² (após habite-se)
   let cno = 0;
-  if (area > 70){
-    const cnoPerc = num(config.CNO_PERC);
-    const cnoFixo = num(config.CNO_FIXO);
+  if(area > 70){
+    const cnoPerc = num(config.CNO_PERC); // se você usar % do financiado
+    const cnoFixo = num(config.CNO_FIXO); // se você usar fixo
     cno = cnoPerc > 0 ? (valorFinBase * cnoPerc) : cnoFixo;
   }
 
-  // Averbação = faixa por VALOR DA OBRA
-  const averbacao = amountByRangeFlat(t['Registro_Averbacao_Faixas_Valor'], valorObra);
+  // Averbação por faixa do valor da obra
+  const averbacao = amountByRangeFlat(t["Registro_Averbacao_Faixas_Valor"], valorObra);
 
-  // Custas previstas (sem contar terreno+obra)
-  const custasPrevistas =
-    projetoValor + crea + alvara + vistoria + taxaFinR + itbi + regAlienacao + tao + calcada + habite + cno + averbacao;
+  // datas
+  const dataSim = payload.data_simulacao || todayISO();
+  const validadeDias = num(payload.validade_dias) || num(config.VALIDADE_PADRAO_DIAS) || num(config.validade_proposta_dias) || 7;
+  const dataVal = addDaysISO(dataSim, validadeDias);
 
-  // Total geral (imóvel + custas)
+  // custas previstas (sem incluir construção + terreno)
+  const custasPrevistas = (
+    projetoValor +
+    crea + alvara + vistoria + taxaFinR + itbi + regAlienacao +
+    tao + calcada + habite + cno + averbacao
+  );
+
+  // total geral
   const totalGeral = totalTerrenoConstrucao + custasPrevistas;
 
-  // Datas
-  const dataSim = payload.data_simulacao ? new Date(payload.data_simulacao) : new Date();
-  const validadeDias = num(payload.validade_dias) || num(config.VALIDADE_PROPOSTA_DIAS) || 0;
-  const dataVal = validadeDias ? addDays(dataSim, validadeDias) : null;
-
   return {
-    // bases
+    // infos
     area,
-    padraoInfo,
+    padraoInfo: pInfo,
+
+    // base
+    valorM2: pInfo.m2,
     custoBase,
     temLaje,
     lajeAd,
     laje,
-    valorObra,
-    terrenoProprio,
-    valorTerrenoCalc,
-    totalTerrenoConstrucao,
 
     // projeto
     projetoTipo,
     projetoRateM2,
     projetoValor,
 
-    // financiamento
+    // valores
+    valorObra,
+    valorTerrenoCalc,
+    totalTerrenoConstrucao,
+
+    // simulação
     entrada,
     subsidio,
     porFora,
     valorAFinanciar,
     valorFinBase,
 
-    // itens / custas
-    crea,
-    alvaraRate,
-    alvara,
+    // taxas
     vistoria,
     taxaFinPerc,
     taxaFinR,
+
+    // itbi
     itbi,
     itbiIsentoBV,
     itbiPercAplicada,
+
+    // registro
     regAlienacao,
+
+    // alvara/habite
+    alvaraRate,
+    alvara,
+    habiteRate,
+    habite,
+
+    // tao
     taoPerc,
     taoFixo,
     tao,
+
+    // calcada
     calcadaPrecoML,
     calcada,
-    habiteRate,
-    habite,
+
+    // cno/averbacao
     cno,
     averbacao,
 
-    custasPrevistas,
-    totalGeral,
-
     // datas
     dataSim,
+    dataVal,
     validadeDias,
-    dataVal
+
+    // totalizadores
+    custasPrevistas,
+    totalGeral
   };
 }
-
-// ======= Utilitário: UUID simples =======
-function uuid(){
-  // suficiente para lead_id
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
-    const r = Math.random()*16|0;
-    const v = c==='x'? r : (r&0x3|0x8);
-    return v.toString(16);
-  });
-}
-
-// ======= Lead “carregar no simulador” via localStorage =======
-function setLeadToLoad(lead){
-  localStorage.setItem('lead_to_load', JSON.stringify(lead));
-}
-function getLeadToLoad(){
-  const raw = localStorage.getItem('lead_to_load');
-  if(!raw) return null;
-  try { return JSON.parse(raw); } catch(_){ return null; }
-}
-function clearLeadToLoad(){
-  localStorage.removeItem('lead_to_load');
-}
-
-
