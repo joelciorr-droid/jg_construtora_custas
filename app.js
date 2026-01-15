@@ -327,8 +327,9 @@ function calcTotal(payload, config){
   const t = FEE_TABLES || {};
 
   // CREA faixa por área (fixo)
-  const crea = amountByRangeFlat(t["CREA_Faixas_Area"], area);
-
+  const creaTable = t["CREA_Faixas_Area"] || t["CREA"] || t["CREA_FAIXAS_AREA"] || null;
+  const crea = amountByRangeFlat(creaTable, area);
+  
   // ALVARÁ tarifa/m² × área
   const alvaraRate = feeByRange(
     payload.cidade === "BOA_VISTA" ? t["Alvara_BV_Faixas_Area"] :
@@ -447,4 +448,5 @@ function calcTotal(payload, config){
     totalGeral
   };
 }
+
 
