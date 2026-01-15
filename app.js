@@ -12,16 +12,19 @@ function $(id){ return document.getElementById(id); }
 // ===== números e moeda =====
 function num(v){
   if (v === null || v === undefined) return 0;
-  if (typeof v === "number") return v;
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
 
   let s = String(v).trim();
   if (!s) return 0;
 
-  s = s.replace(/\s/g, "").replace("%", "");
+  // remove moeda, espaços, % e qualquer caractere que não seja dígito, vírgula, ponto ou sinal
+  // isso resolve entradas como "51 m²", "R$ 1.234,56", "51m2", "51,00m²"
+  s = s.replace(/\s/g, "");
+  s = s.replace(/[^\d.,-]/g, "");  // <-- LIMPEZA PRINCIPAL
 
+  // se tiver vírgula e ponto, decide o separador decimal pelo último que aparece
   const hasComma = s.includes(",");
   const hasDot = s.includes(".");
-
   if (hasComma && hasDot) {
     const lastComma = s.lastIndexOf(",");
     const lastDot = s.lastIndexOf(".");
@@ -33,7 +36,7 @@ function num(v){
       s = s.replace(/,/g, "");
     }
   } else if (hasComma && !hasDot) {
-    // 0,025 -> 0.025
+    // 1234,56 -> 1234.56
     s = s.replace(",", ".");
   }
 
@@ -448,5 +451,6 @@ function calcTotal(payload, config){
     totalGeral
   };
 }
+
 
 
