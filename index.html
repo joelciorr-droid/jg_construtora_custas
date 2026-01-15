@@ -74,26 +74,28 @@
 
       <div class="row row-2" style="margin-top:10px">
         <div>
-          <label>Terreno próprio?</label>
-          <select id="terreno_proprio">
-            <option value="SIM">Sim</option>
-            <option value="NAO" selected>Não</option>
-          </select>
-          <div class="muted" style="margin-top:6px;font-size:12px">Se SIM, ITBI do terreno não entra e valor do terreno pode ficar 0.</div>
-        </div>
-        <div id="wrap_valor_terreno">
-          <label>Valor do terreno (R$)</label>
-          <input id="valor_terreno" />
-        </div>
-      </div>
-
-      <div class="row row-2" style="margin-top:10px">
-        <div>
           <label>Operação</label>
           <select id="operacao">
             <option value="TERRENO_E_CONSTRUCAO" selected>Terreno + Construção</option>
             <option value="CONSTRUCAO_APENAS">Construção apenas</option>
           </select>
+        </div>
+        <div>
+          <label>Terreno próprio?</label>
+          <select id="terreno_proprio">
+            <option value="SIM">Sim</option>
+            <option value="NAO" selected>Não</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row row-2" style="margin-top:10px">
+        <div id="wrap_valor_terreno">
+          <label>Valor do terreno (R$)</label>
+          <input id="valor_terreno" />
+          <div class="muted" style="margin-top:6px;font-size:12px">
+            Preencha quando for Terreno + Construção e o terreno não for próprio.
+          </div>
         </div>
         <div>
           <label>Renda bruta familiar (R$)</label>
@@ -129,13 +131,9 @@
 
       <div class="row row-3" style="margin-top:10px">
         <div>
-          <label>Valor financiado (R$)</label>
-          <input id="valor_financiado" />
-        </div>
-        <div>
           <label>Projeto</label>
           <select id="projeto">
-            <option value="SEM_ESTRUTURAL">Sem estrutural</option>
+            <option value="SEM_ESTRUTURAL" selected>Sem estrutural</option>
             <option value="COM_ESTRUTURAL">Com estrutural</option>
           </select>
         </div>
@@ -146,12 +144,40 @@
             <option value="NAO">Não</option>
           </select>
         </div>
+        <div>
+          <label>Valor financiado (opcional)</label>
+          <input id="valor_financiado" placeholder="Se preencher Entrada/Subsídio/Por fora, pode deixar em branco"/>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <h2>Simulador Caixa</h2>
+      <div class="muted" style="margin-top:-6px;font-size:12px">
+        Esses valores deduzem do total (Terreno + Construção) para chegar ao valor a financiar.
+      </div>
+
+      <div class="row row-3" style="margin-top:10px">
+        <div>
+          <label>Entrada (R$)</label>
+          <input id="entrada" />
+        </div>
+        <div>
+          <label>Subsídio (R$)</label>
+          <input id="subsidio" />
+        </div>
+        <div>
+          <label>Valor por fora (R$)</label>
+          <input id="valor_por_fora" placeholder="Ex: 10.000 (quando total 230k e financia 220k)"/>
+        </div>
       </div>
 
       <div class="hr"></div>
 
       <h2>Calçada (Boa Vista)</h2>
-      <div class="muted" style="margin-top:-6px;font-size:12px">Aplicado apenas se a cidade for Boa Vista e o terreno não tiver calçada.</div>
+      <div class="muted" style="margin-top:-6px;font-size:12px">
+        Aplicado apenas se a cidade for Boa Vista e o terreno não tiver calçada.
+      </div>
 
       <div class="row row-2" style="margin-top:10px">
         <div>
@@ -181,7 +207,6 @@
       <div class="print-area" id="printArea">
 
         <div style="display:flex;gap:16px;align-items:center">
-          <!-- ajuste aqui se sua logo tiver outro nome -->
           <img src="logo.png" style="height:70px;object-fit:contain"/>
           <div>
             <div style="font-weight:700;font-size:16px" id="c_nome">—</div>
@@ -193,7 +218,6 @@
         <div class="hr"></div>
 
         <div id="resHeader"></div>
-
         <div class="hr"></div>
 
         <div id="resBody"></div>
@@ -201,7 +225,7 @@
         <div class="hr"></div>
 
         <div style="font-size:16px">
-          <b>Total estimado:</b> <span id="resTotal">—</span>
+          <b>Total geral (imóvel + custas):</b> <span id="resTotal">—</span>
         </div>
 
         <div class="hr"></div>
@@ -232,7 +256,7 @@
 <script>
 let CONFIG=null, COMPANY=null, BROKER=null;
 
-function msg(el, txt, ok=true){
+function showMsg(el, txt, ok=true){
   el.innerHTML = '<div class="notice '+(ok?'ok':'err')+'">'+txt+'</div>';
 }
 
@@ -245,11 +269,11 @@ function refreshUI(){
 }
 
 function toggleTerrenoUI(){
-  const tp = $('terreno_proprio').value;
   const op = $('operacao').value;
-  const showValorTerreno = !(tp === 'SIM' || op === 'CONSTRUCAO_APENAS');
-  $('wrap_valor_terreno').style.display = showValorTerreno ? 'block' : 'none';
-  if(!showValorTerreno) $('valor_terreno').value = $('valor_terreno').value || '0';
+  const tp = $('terreno_proprio').value;
+  const show = (op === 'TERRENO_E_CONSTRUCAO' && tp !== 'SIM');
+  $('wrap_valor_terreno').style.display = show ? 'block' : 'none';
+  if(!show) $('valor_terreno').value = '0';
 }
 
 function toggleCalcadaUI(){
@@ -258,23 +282,6 @@ function toggleCalcadaUI(){
   const show = (city === 'BOA_VISTA' && pc === 'NAO');
   $('wrap_calcada_ml').style.display = show ? 'block' : 'none';
   if(!show) $('calcada_metros_lineares').value = '';
-}
-
-async function loadAfterLogin(token){
-  const cfg = await getConfig(token);
-  if(!cfg.ok) throw new Error(cfg.error || 'Erro ao carregar Config');
-  CONFIG = cfg.config;
-
-  const ft = await getFeeTables(token);
-  if(ft.ok) FEE_TABLES = ft.tables;
-
-  const c = await getCompany(token);
-  if(c.ok) COMPANY = c.company;
-
-  const b = await getBroker(token);
-  if(b.ok) BROKER = b.broker;
-
-  renderCompanyBroker();
 }
 
 function renderCompanyBroker(){
@@ -297,22 +304,31 @@ function readPayload(){
   return {
     cliente_nome: $('cliente_nome').value,
     cliente_telefone: $('cliente_telefone').value,
+
     cidade: $('cidade').value,
     tipo_financiamento: $('tipo_financiamento').value,
 
-    terreno_proprio: $('terreno_proprio').value,
     operacao: $('operacao').value,
+    terreno_proprio: $('terreno_proprio').value,
     valor_terreno: $('valor_terreno').value,
     renda_bruta_familiar: $('renda_bruta_familiar').value,
 
     area_m2: $('area_m2').value,
     padrao: $('padrao').value,
     laje: $('laje').value,
-    valor_financiado: $('valor_financiado').value,
-    projeto: $('projeto').value,
 
+    projeto: $('projeto').value,
     vistoria_aplica: $('vistoria_aplica').value,
 
+    // opcional
+    valor_financiado: $('valor_financiado').value,
+
+    // simulador
+    entrada: $('entrada').value,
+    subsidio: $('subsidio').value,
+    valor_por_fora: $('valor_por_fora').value,
+
+    // calcada
     possui_calcada: $('possui_calcada').value,
     calcada_metros_lineares: $('calcada_metros_lineares').value
   };
@@ -326,16 +342,47 @@ function renderReport(payload, calc){
       <b>Financiamento:</b> ${payload.tipo_financiamento} |
       <b>Área:</b> ${payload.area_m2 || '—'} m² |
       <b>Padrão:</b> ${payload.padrao} |
-      <b>Terreno próprio:</b> ${payload.terreno_proprio} |
-      <b>Operação:</b> ${payload.operacao}
+      <b>Operação:</b> ${payload.operacao} |
+      <b>Terreno próprio:</b> ${payload.terreno_proprio}
     </div>
   `;
-  
-  const showProjSem = (calc.projSem && calc.projSem > 0);
-  const showProjCom = (calc.projCom && calc.projCom > 0);
-  const showCno = (num(payload.area_m2) > 70);
-  
-  $('resBody').innerHTML = `
+
+  const boxStyle = "padding:10px;border:1px solid #ddd;border-radius:12px;margin:10px 0;";
+  const strongStyle = "font-size:15px;font-weight:700;";
+
+  const terrenoEntra = (payload.terreno_proprio !== 'SIM' && payload.operacao === 'TERRENO_E_CONSTRUCAO');
+
+  const resumoImovel = `
+    <div style="${boxStyle}">
+      <div style="${strongStyle}">Resumo do Imóvel</div>
+      <div><b>Valor da Obra:</b> ${formatBRL(calc.valorObra)}</div>
+      ${terrenoEntra ? `<div><b>Valor do Terreno:</b> ${formatBRL(calc.valorTerrenoCalc)}</div>` : ``}
+      <div style="margin-top:6px"><b>Total (Terreno + Construção):</b> ${formatBRL(calc.totalTerrenoConstrucao)}</div>
+    </div>
+  `;
+
+  const finBox = `
+    <div style="${boxStyle}">
+      <div style="${strongStyle}">Composição do Financiamento</div>
+      <div><b>Total (Terreno + Construção):</b> ${formatBRL(calc.totalTerrenoConstrucao)}</div>
+      <div><b>Entrada:</b> ${formatBRL(calc.entrada)}</div>
+      <div><b>Subsídio:</b> ${formatBRL(calc.subsidio)}</div>
+      <div><b>Valor por fora:</b> ${formatBRL(calc.porFora)}</div>
+      <div style="margin-top:8px"><b>Valor a financiar (calculado):</b> ${formatBRL(calc.valorAFinanciar)}</div>
+      <div class="muted" style="font-size:12px;margin-top:6px">
+        Fórmula: Total − Entrada − Subsídio − Por fora
+      </div>
+    </div>
+  `;
+
+  const showProjSem = (calc.projSem > 0);
+  const showProjCom = (calc.projCom > 0);
+  const showCno = (calc.area > 70 && calc.cno > 0);
+
+  // Ordem exatamente como você pediu:
+  // Construção, Laje, Projeto (um ou outro), CREA, Alvará (m²×tarifa), Vistoria, Taxa financiamento,
+  // ITBI, Registro alienação, TAO, Calçada, Habite-se (m²×tarifa), CNO (>70, após Habite-se), Averbação
+  const custos = `
     <table class="table">
       <tr><td>Construção base</td><td style="text-align:right">${formatBRL(calc.custoBase)}</td></tr>
       <tr><td>Laje</td><td style="text-align:right">${formatBRL(calc.laje)}</td></tr>
@@ -366,22 +413,45 @@ function renderReport(payload, calc){
       <tr><td>Averbação da Obra</td><td style="text-align:right">${formatBRL(calc.averbacao)}</td></tr>
     </table>
   `;
-  
-  $('resTotal').textContent = formatBRL(calc.total);
+
+  $('resBody').innerHTML = `
+    ${resumoImovel}
+    ${finBox}
+    ${custos}
+  `;
+
+  $('resTotal').textContent = formatBRL(calc.totalGeral);
+}
+
+async function loadAfterLogin(token){
+  const cfg = await getConfig(token);
+  if(!cfg.ok) throw new Error(cfg.error || 'Erro ao carregar Config');
+  CONFIG = cfg.config;
+
+  const ft = await getFeeTables(token);
+  if(ft.ok) FEE_TABLES = ft.tables;
+
+  const c = await getCompany(token);
+  if(c.ok) COMPANY = c.company;
+
+  const b = await getBroker(token);
+  if(b.ok) BROKER = b.broker;
+
+  renderCompanyBroker();
 }
 
 $('btnLogin').onclick = async ()=>{
   try{
     const r = await apiPost({action:'login', email:$('email').value, password:$('password').value});
-    if(!r.ok) return msg($('msg'), r.error || 'Erro no login', false);
+    if(!r.ok) return showMsg($('msg'), r.error || 'Erro no login', false);
 
     setSession(r.token, r.user);
     refreshUI();
 
     await loadAfterLogin(r.token);
-    msg($('msg'), 'Login realizado e configurações carregadas.', true);
+    showMsg($('msg'), 'Login realizado e configurações carregadas.', true);
   } catch(e){
-    msg($('msg'), String(e), false);
+    showMsg($('msg'), String(e), false);
   }
 };
 
@@ -389,28 +459,30 @@ $('btnLogout').onclick = ()=>{
   clearSession();
   CONFIG=null; COMPANY=null; BROKER=null; FEE_TABLES=null;
   refreshUI();
-  msg($('msg'), 'Sessão encerrada.', true);
+  showMsg($('msg'), 'Sessão encerrada.', true);
 };
 
 $('btnCalcular').onclick = ()=>{
   const {token} = getSession();
-  if(!token) return msg($('msg2'), 'Faça login primeiro.', false);
-  if(!CONFIG) return msg($('msg2'), 'Config não carregada. Saia e faça login novamente.', false);
+  if(!token) return showMsg($('msg2'), 'Faça login primeiro.', false);
+  if(!CONFIG) return showMsg($('msg2'), 'Config não carregada. Saia e faça login novamente.', false);
 
   const payload = readPayload();
   const calc = calcTotal(payload, CONFIG);
   renderReport(payload, calc);
-  msg($('msg2'), 'Cálculo atualizado.', true);
+  showMsg($('msg2'), 'Cálculo atualizado.', true);
 };
 
 $('btnSalvar').onclick = async ()=>{
   const {token} = getSession();
-  if(!token) return msg($('msg2'), 'Faça login primeiro.', false);
-  if(!CONFIG) return msg($('msg2'), 'Config não carregada. Saia e faça login novamente.', false);
+  if(!token) return showMsg($('msg2'), 'Faça login primeiro.', false);
+  if(!CONFIG) return showMsg($('msg2'), 'Config não carregada. Saia e faça login novamente.', false);
 
   const payload = readPayload();
   const calc = calcTotal(payload, CONFIG);
-  payload.total_estimado = calc.total;
+
+  payload.total_estimado = calc.totalGeral;
+  payload.valor_a_financiar = calc.valorAFinanciar;
 
   // CRM defaults (se quiser)
   payload.status = payload.status || 'NOVO';
@@ -418,20 +490,21 @@ $('btnSalvar').onclick = async ()=>{
   payload.notes = payload.notes || '';
 
   const r = await apiPost({action:'saveLead', token, payload});
-  msg($('msg2'), r.ok ? 'Lead salvo com sucesso.' : (r.error || 'Erro ao salvar'), !!r.ok);
+  showMsg($('msg2'), r.ok ? 'Lead salvo com sucesso.' : (r.error || 'Erro ao salvar'), !!r.ok);
 };
 
 $('btnPDF').onclick = ()=> window.print();
 
-$('terreno_proprio').onchange = toggleTerrenoUI;
+// listeners
 $('operacao').onchange = toggleTerrenoUI;
-$('cidade').onchange = ()=>{ toggleTerrenoUI(); toggleCalcadaUI(); };
+$('terreno_proprio').onchange = toggleTerrenoUI;
+$('cidade').onchange = toggleCalcadaUI;
 $('possui_calcada').onchange = toggleCalcadaUI;
 
+// init
 refreshUI();
 toggleTerrenoUI();
 toggleCalcadaUI();
 </script>
 </body>
 </html>
-
