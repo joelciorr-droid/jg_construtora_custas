@@ -48,7 +48,7 @@
 
     <div id="msg" style="margin-top:12px"></div>
   </div>
-  
+
   <!-- TROCA DE SENHA OBRIGATÓRIA -->
   <div class="card no-print" id="changePassCard" style="display:none">
     <h2>Troca de senha obrigatória</h2>
@@ -66,15 +66,15 @@
       </div>
     </div>
 
-    <div class="actions" style="margin-top:12px">
+    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn" id="btnChangePass">Salvar nova senha</button>
       <button class="btn secondary" id="btnChangePassLogout">Sair</button>
     </div>
 
     <div id="msgPass" style="margin-top:12px"></div>
   </div>
-  
-  <div class="grid grid-2" style="margin-top:16px">
+
+  <div class="grid grid-2" style="margin-top:16px" id="mainGrid">
 
     <!-- FORM -->
     <div class="card no-print">
@@ -142,7 +142,7 @@
           <input id="valor_terreno" />
         </div>
         <div>
-          <label>Renda bruta familiar (R$) (para ITBI Boa Vista)</label>
+          <label>Renda bruta familiar (R$) (ITBI Boa Vista)</label>
           <input id="renda_bruta_familiar" />
         </div>
       </div>
@@ -170,7 +170,9 @@
             <option value="NAO" selected>Não</option>
             <option value="SIM">Sim</option>
           </select>
-          <div class="muted" style="font-size:12px;margin-top:6px">Sem laje: projeto sem estrutural. Com laje: projeto com estrutural.</div>
+          <div class="muted" style="font-size:12px;margin-top:6px">
+            Sem laje: projeto sem estrutural. Com laje: projeto com estrutural.
+          </div>
         </div>
       </div>
 
@@ -287,19 +289,17 @@
 <script>
 let CONFIG=null, COMPANY=null, BROKER=null;
 
-function lockForPasswordChange(){
-  $('changePassCard').style.display = 'block';
-  // esconde área do sistema
-  document.querySelectorAll('.grid, .grid-2').forEach(el=> el.style.display='none');
-}
-
-function unlockAfterPasswordChange(){
-  $('changePassCard').style.display = 'none';
-  document.querySelectorAll('.grid, .grid-2').forEach(el=> el.style.display='');
-}
-
 function showMsg(el, txt, ok=true){
   el.innerHTML = '<div class="notice '+(ok?'ok':'err')+'">'+txt+'</div>';
+}
+
+function lockForPasswordChange(){
+  $('changePassCard').style.display = 'block';
+  $('mainGrid').style.display = 'none';
+}
+function unlockAfterPasswordChange(){
+  $('changePassCard').style.display = 'none';
+  $('mainGrid').style.display = '';
 }
 
 function refreshMenu(){
@@ -349,12 +349,13 @@ function renderCompanyBroker(){
     $('b_nome').textContent = BROKER.nome_completo || BROKER.apelido || '—';
     $('b_creci').textContent = BROKER.creci || '—';
     $('b_tel').textContent = BROKER.telefone || '—';
-    $('b_assinatura').textContent = (BROKER.apelido || BROKER.nome_completo || 'Corretor') + (BROKER.creci ? (' | CRECI '+BROKER.creci) : '');
+    $('b_assinatura').textContent =
+      (BROKER.apelido || BROKER.nome_completo || 'Corretor') +
+      (BROKER.creci ? (' | CRECI '+BROKER.creci) : '');
   }
 }
 
 function readPayload(){
-  // lead_id fixo para manter histórico: cria uma vez e mantém
   let lead_id = $('cliente_telefone').dataset.leadId || '';
   if(!lead_id){
     lead_id = uuid();
@@ -534,8 +535,12 @@ function renderReport(payload, calc){
 
       ${showCno ? `<tr><td><b>CNO (Receita Federal)</b></td><td style="text-align:right"><b>${formatBRL(calc.cno)}</b></td></tr>` : ``}
 
-      <tr><td><b>Averbação da Obra</b> <div class="muted" style="font-size:11px">Faixa pelo valor da obra: ${formatBRL(calc.valorObra)}</div></td>
-          <td style="text-align:right"><b>${formatBRL(calc.averbacao)}</b></td></tr>
+      <tr>
+        <td><b>Averbação da Obra</b>
+          <div class="muted" style="font-size:11px">Faixa pelo valor da obra: ${formatBRL(calc.valorObra)}</div>
+        </td>
+        <td style="text-align:right"><b>${formatBRL(calc.averbacao)}</b></td>
+      </tr>
     </table>
   `;
 
@@ -552,23 +557,22 @@ function renderReport(payload, calc){
 
 async function loadAfterLogin(token){
   const cfg = await getConfig(token);
-  if(!cfg.ok) throw new Error(cfg.error || 'Erro ao carregar Config');
+  if (!cfg.ok) throw new Error(cfg.error || 'Erro ao carregar Config');
   CONFIG = cfg.config;
 
   const ft = await getFeeTables(token);
-  if(ft.ok) FEE_TABLES = ft.tables;
+  if (ft.ok) FEE_TABLES = ft.tables;
 
   const c = await getCompany(token);
-  if(c.ok) COMPANY = c.company;
+  if (c.ok) COMPANY = c.company;
 
   const b = await getBroker(token);
-  if(b.ok) BROKER = b.broker;
+  if (b.ok) BROKER = b.broker;
 
   renderCompanyBroker();
 }
 
 function fillFormFromLead(lead){
-  // lead pode vir do CRM
   if(!lead) return;
 
   $('cliente_nome').value = lead.cliente_nome || '';
@@ -608,19 +612,17 @@ $('btnLogin').onclick = async ()=>{
 
     setSession(r.token, r.user);
     refreshMenu();
-    
-    // Se precisa trocar senha, bloqueia e não carrega o resto
-    if (r.user && r.user.mustChangePassword) {
+
+    // troca obrigatória
+    if (r.user && r.user.mustChangePassword){
       lockForPasswordChange();
       showMsg($('msg'), 'Você precisa trocar sua senha para continuar.', false);
       return;
     }
-    
+
     await loadAfterLogin(r.token);
-    
     showMsg($('msg'), 'Login realizado e configurações carregadas.', true);
 
-    // Se veio do CRM para editar/continuar
     const toLoad = getLeadToLoad();
     if(toLoad){
       fillFormFromLead(toLoad);
@@ -636,10 +638,34 @@ function doLogout(){
   clearSession();
   CONFIG=null; COMPANY=null; BROKER=null; FEE_TABLES=null;
   refreshMenu();
+  unlockAfterPasswordChange();
   showMsg($('msg'), 'Sessão encerrada.', true);
 }
 $('btnLogout').onclick = doLogout;
 $('btnLogoutTop').onclick = doLogout;
+
+$('btnChangePass').onclick = async ()=>{
+  try{
+    const {token} = getSession();
+    if(!token) return showMsg($('msgPass'), 'Sem sessão. Faça login novamente.', false);
+
+    const newPassword = $('newPass').value;
+    const confirmPassword = $('newPass2').value;
+
+    const r = await apiPost({ action:'changePassword', token, newPassword, confirmPassword });
+    if(!r.ok) return showMsg($('msgPass'), r.error || 'Erro ao trocar senha.', false);
+
+    showMsg($('msgPass'), 'Senha alterada com sucesso. Faça login novamente.', true);
+    clearSession();
+    refreshMenu();
+    unlockAfterPasswordChange();
+    $('newPass').value = '';
+    $('newPass2').value = '';
+  } catch(e){
+    showMsg($('msgPass'), String(e), false);
+  }
+};
+$('btnChangePassLogout').onclick = doLogout;
 
 $('btnCalcular').onclick = ()=>{
   const {token} = getSession();
@@ -660,13 +686,11 @@ $('btnSalvar').onclick = async ()=>{
   const payload = readPayload();
   const calc = calcTotal(payload, CONFIG);
 
-  // grava campos úteis para CRM
   payload.total_estimado = calc.totalGeral;
   payload.custas_previstas = calc.custasPrevistas;
   payload.valor_a_financiar = calc.valorAFinanciar;
   payload.last_calc_json = JSON.stringify(calc);
 
-  // defaults CRM
   payload.status = payload.status || 'NOVO';
   payload.next_action_at = payload.next_action_at || '';
   payload.notes = payload.notes || '';
@@ -677,59 +701,29 @@ $('btnSalvar').onclick = async ()=>{
 
 $('btnPDF').onclick = ()=> window.print();
 
-// listeners
 $('operacao').onchange = toggleTerrenoUI;
 $('terreno_proprio').onchange = toggleTerrenoUI;
 $('cidade').onchange = toggleCalcadaUI;
 $('possui_calcada').onchange = toggleCalcadaUI;
 
-// init
 setDefaults();
 refreshMenu();
 toggleTerrenoUI();
 toggleCalcadaUI();
 
-$('btnChangePass').onclick = async ()=>{
-  try{
-    const {token, user} = getSession();
-    if(!token) return showMsg($('msgPass'), 'Sem sessão. Faça login novamente.', false);
-
-    const newPassword = $('newPass').value;
-    const confirmPassword = $('newPass2').value;
-
-    const r = await apiPost({ action:'changePassword', token, newPassword, confirmPassword });
-    if(!r.ok) return showMsg($('msgPass'), r.error || 'Erro ao trocar senha.', false);
-
-    showMsg($('msgPass'), 'Senha alterada com sucesso. Faça login novamente.', true);
-
-    // encerra sessão e força login de novo
-    clearSession();
-    refreshMenu();
-    unlockAfterPasswordChange();
-    $('newPass').value = '';
-    $('newPass2').value = '';
-  } catch(e){
-    showMsg($('msgPass'), String(e), false);
-  }
-};
-
-$('btnChangePassLogout').onclick = ()=>{
-  doLogout();
-  unlockAfterPasswordChange();
-};
-
-// auto-carregar lead se já existe em localStorage e usuário já está logado
 (async function boot(){
-  const {token} = getSession();
+  const {token,user} = getSession();
   if(token){
     try{
       refreshMenu();
+
       if(user && user.mustChangePassword){
         lockForPasswordChange();
         return;
       }
-      
+
       await loadAfterLogin(token);
+
       const toLoad = getLeadToLoad();
       if(toLoad){
         fillFormFromLead(toLoad);
@@ -737,7 +731,6 @@ $('btnChangePassLogout').onclick = ()=>{
         showMsg($('msg2'), 'Lead carregado do CRM.', true);
       }
     }catch(_){
-      // token expirou; deixa login aparecer
       doLogout();
     }
   }
@@ -745,4 +738,3 @@ $('btnChangePassLogout').onclick = ()=>{
 </script>
 </body>
 </html>
-
