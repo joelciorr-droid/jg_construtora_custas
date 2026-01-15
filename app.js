@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbx9QN0aJM6KwMyZ65XfeMbUN7aWTu_v3NAIhhf2ItWg3kmm5vE-scnfAf6lpyToO20FaQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyBV_4JklA8sfMbNWOnDMXxmBqvcKyb60MxOKb8X2-CBqnMW5jK7JMiVSyNCR89_O_yYQ/exec";
 
 function $(id){ return document.getElementById(id); }
 
@@ -346,4 +346,5 @@ function getLeadToLoad(){
 function clearLeadToLoad(){
   localStorage.removeItem('lead_to_load');
 }
+
 
