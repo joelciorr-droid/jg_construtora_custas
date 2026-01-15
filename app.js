@@ -396,6 +396,7 @@ function calcTotal(payload, config){
     projetoTipo,
     projetoRateM2,
     projetoValor,
+    crea,
 
     // valores
     valorObra,
@@ -451,6 +452,7 @@ function calcTotal(payload, config){
     totalGeral
   };
 }
+
 
 
 
