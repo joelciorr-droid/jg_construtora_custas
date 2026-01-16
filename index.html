@@ -466,8 +466,17 @@ function renderReport(payload, calc){
       <div style="margin-top:6px"><b>Total (Terreno + Construção):</b> ${formatBRL(calc.totalTerrenoConstrucao)}</div>
     </div>
   `;
-
-  const finBox = `
+  
+  const finBox = (payload.tipo_financiamento === 'PROPRIO')
+  ? `
+    <div style="${boxStyle}">
+      <div style="${strongStyle}">Composição (Recursos próprios)</div>
+      <div><b>Total (Construção):</b> ${formatBRL(calc.totalTerrenoConstrucao)}</div>
+      <div><b>Entrada:</b> ${formatBRL(calc.entrada)}</div>
+      <div style="margin-top:8px"><b>Saldo a negociar durante a fase de obra:</b> ${formatBRL(calc.saldoNegociar)}</div>
+    </div>
+  `
+  : `
     <div style="${boxStyle}">
       <div style="${strongStyle}">Composição do Financiamento</div>
       <div><b>Total (Terreno + Construção):</b> ${formatBRL(calc.totalTerrenoConstrucao)}</div>
@@ -480,7 +489,7 @@ function renderReport(payload, calc){
       </div>
     </div>
   `;
-
+  
   // Projetos (automático por laje)
   const projetoLabel = (calc.projetoTipo === 'COM_ESTRUTURAL') ? 'Projeto (com estrutural)' : 'Projeto (sem estrutural)';
   const projetoExpl = `${formatBRL(calc.projetoRateM2)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.projetoValor)}`;
@@ -519,49 +528,44 @@ function renderReport(payload, calc){
 
   const showLaje = calc.temLaje && calc.laje > 0;
   const showCno = (calc.area > 70 && calc.cno > 0);
-
+  const isProprio = (payload.tipo_financiamento === 'PROPRIO');
+  
   const custos = `
     <table class="table">
       <tr><td><b>Construção base</b></td><td style="text-align:right"><b>${formatBRL(calc.custoBase)}</b></td></tr>
 
       ${showLaje ? `<tr><td><b>Laje</b> <div class="muted" style="font-size:11px">${formatBRL(calc.lajeAd)} / m² × ${calc.area.toLocaleString('pt-BR')} m²</div></td><td style="text-align:right"><b>${formatBRL(calc.laje)}</b></td></tr>` : ``}
-
+      
       <tr>
         <td><b>${projetoLabel}</b><div class="muted" style="font-size:11px">${projetoExpl}</div></td>
         <td style="text-align:right"><b>${formatBRL(calc.projetoValor)}</b></td>
       </tr>
-
+      
       <tr><td><b>ART's do CREA</b></td><td style="text-align:right"><b>${formatBRL(calc.crea)}</b></td></tr>
 
       <tr>
         <td><b>Alvará de Construção</b><div class="muted" style="font-size:11px">${alvaraExpl}</div></td>
         <td style="text-align:right"><b>${formatBRL(calc.alvara)}</b></td>
       </tr>
+      
+      ${isProprio ? `` : `<tr><td><b>Vistoria Caixa</b></td><td style="text-align:right"><b>${formatBRL(calc.vistoria)}</b></td></tr>`}
 
-      <tr><td><b>Vistoria Caixa</b></td><td style="text-align:right"><b>${formatBRL(calc.vistoria)}</b></td></tr>
-
-      <tr>
-        <td><b>Taxa de financiamento</b><div class="muted" style="font-size:11px">${taxaExpl}</div></td>
-        <td style="text-align:right"><b>${formatBRL(calc.taxaFinR)}</b></td>
-      </tr>
-
+      ${isProprio ? `` : `<tr><td><b>Taxa de financiamento</b><div class="muted" style="font-size:11px">${taxaExpl}</div></td><td style="text-align:right"><b>${formatBRL(calc.taxaFinR)}</b></td></tr>`}
+      
       <tr>
         <td><b>ITBI (terreno)</b><div class="muted" style="font-size:11px">${itbiExpl}</div></td>
         <td style="text-align:right"><b>${formatBRL(calc.itbi)}</b></td>
       </tr>
-
-      <tr><td><b>Registro de Alienação</b></td><td style="text-align:right"><b>${formatBRL(calc.regAlienacao)}</b></td></tr>
-
-      <tr>
-        <td><b>TAO</b><div class="muted" style="font-size:11px">${taoExpl}</div></td>
-        <td style="text-align:right"><b>${formatBRL(calc.tao)}</b></td>
-      </tr>
-
+      
+      ${isProprio ? `` : `<tr><td><b>Registro de Alienação</b></td><td style="text-align:right"><b>${formatBRL(calc.regAlienacao)}</b></td></tr>`}
+      
+      ${isProprio ? `` : `<tr><td><b>TAO</b><div class="muted" style="font-size:11px">${taoExpl}</div></td><td style="text-align:right"><b>${formatBRL(calc.tao)}</b></td></tr>`}
+      
       <tr>
         <td><b>Calçada</b><div class="muted" style="font-size:11px">${calcadaExpl}</div></td>
         <td style="text-align:right"><b>${formatBRL(calc.calcada)}</b></td>
       </tr>
-
+      
       <tr>
         <td><b>Habite-se</b><div class="muted" style="font-size:11px">${habiteExpl}</div></td>
         <td style="text-align:right"><b>${formatBRL(calc.habite)}</b></td>
@@ -774,4 +778,5 @@ toggleTipoFinUI();
 </script>
 </body>
 </html>
+
 
