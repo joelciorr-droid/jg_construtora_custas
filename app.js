@@ -278,14 +278,24 @@ function calcTotal(payload, config){
   // fallback: valor financiado digitado manualmente (se não tiver calculado)
   const valorFinInput = num(payload.valor_financiado);
   const valorFinBase = (valorAFinanciar > 0) ? valorAFinanciar : valorFinInput;
-
-  // vistoria CAIXA - agora sempre entra
-  const vistoria = num(config.VISTORIA_CAIXA_FIXO);
-
-  // taxa financiamento (% do financiado)
-  const taxaFinPerc = (payload.tipo_financiamento === "MCMV") ? num(config.TAXA_FIN_MCMV) : num(config.TAXA_FIN_OUTROS);
-  const taxaFinR = valorFinBase * taxaFinPerc;
-
+  
+  const isProprio = (payload.tipo_financiamento === "PROPRIO");
+  
+  // vistoria CAIXA
+  const vistoria = isProprio ? 0 : num(config.VISTORIA_CAIXA_FIXO);
+  
+  // taxa financiamento
+  const taxaFinPerc = isProprio ? 0 : ((payload.tipo_financiamento === "MCMV") ? num(config.TAXA_FIN_MCMV) : num(config.TAXA_FIN_OUTROS));
+  const taxaFinR = isProprio ? 0 : (valorFinBase * taxaFinPerc);
+  
+  // Registro Alienação (só se banco)
+  const regAlienacao = isProprio ? 0 : amountByRangeFlat(t["Registro_Alienacao_Faixas_Valor"], valorFinBase);
+  
+  // TAO (só se banco)
+  const taoPerc = num(config.TAO_MCMV);
+  const taoFixo = num(config.TAO_OUTROS_FIXO);
+  const tao = isProprio ? 0 : ((payload.tipo_financiamento === "MCMV") ? (valorFinBase * taoPerc) : taoFixo);
+  
   // ITBI
   let itbi = 0;
   let itbiIsentoBV = false;
@@ -310,14 +320,7 @@ function calcTotal(payload, config){
       itbi = valorTerrenoCalc * itbiPercAplicada;
     }
   }
-
-  // TAO
-  const taoPerc = num(config.TAO_MCMV);           // 0.015
-  const taoFixo = num(config.TAO_OUTROS_FIXO);    // 1600
-  const tao = (payload.tipo_financiamento === "MCMV")
-    ? (valorFinBase * taoPerc)
-    : taoFixo;
-
+  
   // Calçada
   const calcadaPrecoML = num(config.CALCADA_PRECO_METRO_LINEAR);
   let calcada = 0;
@@ -341,10 +344,7 @@ function calcTotal(payload, config){
     area
   );
   const alvara = alvaraRate * area;
-
-  // Registro Alienação por faixa do financiado
-  const regAlienacao = amountByRangeFlat(t["Registro_Alienacao_Faixas_Valor"], valorFinBase);
-
+  
   // Habite-se tarifa/m² × área
   const habiteRate = feeByRange(
     payload.cidade === "BOA_VISTA" ? t["HabiteSe_BV_Faixas_Area"] :
@@ -377,6 +377,10 @@ function calcTotal(payload, config){
     tao + calcada + habite + cno + averbacao
   );
 
+  // Em recursos próprios: não existe subsídio e por fora (o form já zera)
+  // saldo = Total (Terreno + Construção) - entrada
+  const saldoNegociar = isProprio ? Math.max(0, totalTerrenoConstrucao - entrada) : 0;
+  
   // total geral
   const totalGeral = totalTerrenoConstrucao + custasPrevistas;
 
@@ -446,12 +450,16 @@ function calcTotal(payload, config){
     dataSim,
     dataVal,
     validadeDias,
-
+    
+    saldoNegociar,
+    isProprio,
+    
     // totalizadores
     custasPrevistas,
     totalGeral
   };
 }
+
 
 
 
