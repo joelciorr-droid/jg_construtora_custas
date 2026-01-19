@@ -219,7 +219,10 @@ function calcTotal(payload, config){
 
   const isProprio = (payload.tipo_financiamento === "PROPRIO");
   const pInfo = padraoInfo(padrao, config);
-
+  
+  // carregar tabelas por faixa
+  const t = FEE_TABLES || {};
+  
   // base construção
   const custoBase = area * pInfo.m2;
 
@@ -264,10 +267,7 @@ function calcTotal(payload, config){
   // valor financiado base (pra fórmulas bancárias)
   const valorFinInput = num(payload.valor_financiado);
   const valorFinBase = (!isProprio && valorAFinanciar > 0) ? valorAFinanciar : valorFinInput;
-
-  // carregar tabelas por faixa
-  const t = FEE_TABLES || {};
-
+  
   // CREA
   const creaTable = t["CREA_Faixas_Area"] || t["CREA"] || t["CREA_FAIXAS_AREA"] || null;
   const crea = amountByRangeFlat(creaTable, area);
@@ -432,3 +432,4 @@ function calcTotal(payload, config){
     totalGeral
   };
 }
+
