@@ -74,7 +74,7 @@
     <div id="msgPass" style="margin-top:12px"></div>
   </div>
 
-  <div class="grid grid-2" style="margin-top:16px" id="mainGrid">
+  <div class="grid grid-2" id="appGrid" style="margin-top:16px">
 
     <!-- FORM -->
     <div class="card no-print">
@@ -103,7 +103,7 @@
           <div class="muted" style="font-size:12px;margin-top:6px">Se vazio, usa o padrão da configuração.</div>
         </div>
         <div>
-          <label>Tipo de financiamento</label>
+          <label>Tipo de operação</label>
           <select id="tipo_financiamento">
             <option value="MCMV">Minha Casa Minha Vida</option>
             <option value="OUTROS">SBPE / Outros</option>
@@ -142,8 +142,8 @@
           <label>Valor do terreno (R$)</label>
           <input id="valor_terreno" />
         </div>
-        <div>
-          <label>Renda bruta familiar (R$) (ITBI Boa Vista)</label>
+        <div id="wrap_renda">
+          <label>Renda bruta familiar (R$) (para ITBI Boa Vista)</label>
           <input id="renda_bruta_familiar" />
         </div>
       </div>
@@ -171,9 +171,7 @@
             <option value="NAO" selected>Não</option>
             <option value="SIM">Sim</option>
           </select>
-          <div class="muted" style="font-size:12px;margin-top:6px">
-            Sem laje: projeto sem estrutural. Com laje: projeto com estrutural.
-          </div>
+          <div class="muted" style="font-size:12px;margin-top:6px">Sem laje: projeto sem estrutural. Com laje: projeto com estrutural.</div>
         </div>
       </div>
 
@@ -183,31 +181,31 @@
           <input id="valor_financiado" placeholder="Se preencher Entrada/Subsídio/Por fora, pode deixar em branco"/>
         </div>
       </div>
-      
+
       <div class="hr"></div>
 
-      <h2>Simulador Caixa</h2>
+      <h2>Composição (simulação / negociação)</h2>
       <div class="muted" style="margin-top:-6px;font-size:12px">
-        Regra: Financiamento = Total (Terreno + Construção) − Entrada − Subsídio − Por fora.
+        <span id="help_composicao">Regra: Financiamento = Total (Terreno + Construção) − Entrada − Subsídio − Por fora.</span>
       </div>
-      
+
       <div class="row row-3" style="margin-top:10px">
         <div>
           <label>Entrada (R$)</label>
           <input id="entrada" />
         </div>
-      
+
         <div id="wrap_subsidio">
           <label>Subsídio (R$)</label>
           <input id="subsidio" />
         </div>
-      
+
         <div id="wrap_porfora">
           <label>Valor por fora (R$)</label>
           <input id="valor_por_fora" placeholder="Ex: 10.000"/>
         </div>
       </div>
-      
+
       <div class="hr"></div>
 
       <h2>Calçada (Boa Vista)</h2>
@@ -292,19 +290,22 @@
 <script>
 let CONFIG=null, COMPANY=null, BROKER=null;
 
+// ===== util msg =====
 function showMsg(el, txt, ok=true){
   el.innerHTML = '<div class="notice '+(ok?'ok':'err')+'">'+txt+'</div>';
 }
 
+// ===== lock change password =====
 function lockForPasswordChange(){
   $('changePassCard').style.display = 'block';
-  $('mainGrid').style.display = 'none';
+  $('appGrid').style.display = 'none';
 }
 function unlockAfterPasswordChange(){
   $('changePassCard').style.display = 'none';
-  $('mainGrid').style.display = '';
+  $('appGrid').style.display = '';
 }
 
+// ===== menu =====
 function refreshMenu(){
   const {token,user}=getSession();
   $('whoMini').textContent = token ? (user.name+' ('+user.role+')') : '';
@@ -317,43 +318,26 @@ function refreshMenu(){
   $('who').textContent = token ? (user.name+' ('+user.role+')') : '';
 }
 
+// ===== UI toggles =====
 function toggleTerrenoUI(){
   const op = $('operacao').value;
   const tp = $('terreno_proprio').value;
+  const tf = $('tipo_financiamento').value;
+
+  // Em recursos próprios: sempre construção apenas + terreno próprio
+  if(tf === 'PROPRIO'){
+    $('wrap_valor_terreno').style.display = 'none';
+    $('wrap_renda').style.display = 'none';
+    $('valor_terreno').value = '0';
+    $('renda_bruta_familiar').value = '';
+    return;
+  }
+
   const show = (op === 'TERRENO_E_CONSTRUCAO' && tp !== 'SIM');
   $('wrap_valor_terreno').style.display = show ? 'block' : 'none';
   if(!show) $('valor_terreno').value = '0';
-}
 
-function toggleTipoFinUI(){
-  const tf = $('tipo_financiamento').value;
-
-  const isProprio = (tf === 'PROPRIO');
-
-  // Em recursos próprios: operação é construção apenas, terreno próprio por padrão
-  if(isProprio){
-    $('operacao').value = 'CONSTRUCAO_APENAS';
-    $('terreno_proprio').value = 'SIM';
-    $('valor_terreno').value = '0';
-    $('renda_bruta_familiar').value = '';
-
-    // esconder campos que não existem nesse tipo
-    $('wrap_subsidio').style.display = 'none';
-    $('wrap_porfora').style.display = 'none';
-    $('wrap_valor_financiado').style.display = 'none';
-
-    // zera inputs que não se aplicam
-    $('subsidio').value = '0';
-    $('valor_por_fora').value = '0';
-    $('valor_financiado').value = '';
-  }else{
-    $('wrap_subsidio').style.display = 'block';
-    $('wrap_porfora').style.display = 'block';
-    $('wrap_valor_financiado').style.display = 'block';
-  }
-
-  // atualiza também regras de terreno
-  toggleTerrenoUI();
+  $('wrap_renda').style.display = 'block';
 }
 
 function toggleCalcadaUI(){
@@ -364,10 +348,41 @@ function toggleCalcadaUI(){
   if(!show) $('calcada_metros_lineares').value = '';
 }
 
+function toggleTipoFinUI(){
+  const tf = $('tipo_financiamento').value;
+  const isProprio = (tf === 'PROPRIO');
+
+  if(isProprio){
+    $('operacao').value = 'CONSTRUCAO_APENAS';
+    $('terreno_proprio').value = 'SIM';
+    $('valor_terreno').value = '0';
+    $('renda_bruta_familiar').value = '';
+
+    $('wrap_subsidio').style.display = 'none';
+    $('wrap_porfora').style.display = 'none';
+    $('wrap_valor_financiado').style.display = 'none';
+
+    $('subsidio').value = '0';
+    $('valor_por_fora').value = '0';
+    $('valor_financiado').value = '';
+
+    $('help_composicao').textContent = 'Recursos próprios: Saldo = Total (Construção) − Entrada.';
+  }else{
+    $('wrap_subsidio').style.display = 'block';
+    $('wrap_porfora').style.display = 'block';
+    $('wrap_valor_financiado').style.display = 'block';
+    $('help_composicao').textContent = 'Regra: Financiamento = Total (Terreno + Construção) − Entrada − Subsídio − Por fora.';
+  }
+
+  toggleTerrenoUI();
+}
+
+// ===== defaults =====
 function setDefaults(){
   $('data_simulacao').value = todayISO();
 }
 
+// ===== company/broker header =====
 function renderCompanyBroker(){
   if(COMPANY){
     $('c_nome').textContent = COMPANY.nome_fantasia || '—';
@@ -383,50 +398,44 @@ function renderCompanyBroker(){
     $('b_nome').textContent = BROKER.nome_completo || BROKER.apelido || '—';
     $('b_creci').textContent = BROKER.creci || '—';
     $('b_tel').textContent = BROKER.telefone || '—';
-    $('b_assinatura').textContent =
-      (BROKER.apelido || BROKER.nome_completo || 'Corretor') +
-      (BROKER.creci ? (' | CRECI '+BROKER.creci) : '');
+    $('b_assinatura').textContent = (BROKER.apelido || BROKER.nome_completo || 'Corretor') + (BROKER.creci ? (' | CRECI '+BROKER.creci) : '');
   }
 }
 
+// ===== read payload =====
 function readPayload(){
   let lead_id = $('cliente_telefone').dataset.leadId || '';
   if(!lead_id){
     lead_id = uuid();
     $('cliente_telefone').dataset.leadId = lead_id;
   }
-
   return {
     lead_id,
-
     cliente_nome: $('cliente_nome').value,
     cliente_telefone: $('cliente_telefone').value,
-
     data_simulacao: $('data_simulacao').value,
     validade_dias: $('validade_dias').value,
-
     tipo_financiamento: $('tipo_financiamento').value,
     cidade: $('cidade').value,
     operacao: $('operacao').value,
     terreno_proprio: $('terreno_proprio').value,
     valor_terreno: $('valor_terreno').value,
     renda_bruta_familiar: $('renda_bruta_familiar').value,
-
     area_m2: $('area_m2').value,
     padrao: $('padrao').value,
     laje: $('laje').value,
     valor_financiado: $('valor_financiado').value,
-
     entrada: $('entrada').value,
     subsidio: $('subsidio').value,
     valor_por_fora: $('valor_por_fora').value,
-
     possui_calcada: $('possui_calcada').value,
     calcada_metros_lineares: $('calcada_metros_lineares').value
   };
 }
 
+// ===== render report =====
 function renderReport(payload, calc){
+  const isProprio = (payload.tipo_financiamento === 'PROPRIO');
   const validadeDate = calc.dataVal ? formatDateBR(calc.dataVal) : '—';
 
   $('resHeader').innerHTML = `
@@ -435,10 +444,9 @@ function renderReport(payload, calc){
       <b>Data da simulação:</b> ${formatDateBR(calc.dataSim)} |
       <b>Validade até:</b> ${validadeDate}<br/>
       <b>Cidade:</b> ${payload.cidade} |
-      <b>Financiamento:</b> ${payload.tipo_financiamento} |
+      <b>Operação:</b> ${payload.tipo_financiamento} |
       <b>Área:</b> ${payload.area_m2 || '—'} m² |
       <b>Padrão:</b> ${payload.padrao} |
-      <b>Operação:</b> ${payload.operacao} |
       <b>Terreno próprio:</b> ${payload.terreno_proprio}
     </div>
   `;
@@ -446,7 +454,7 @@ function renderReport(payload, calc){
   const boxStyle = "padding:10px;border:1px solid #ddd;border-radius:12px;margin:10px 0;";
   const strongStyle = "font-size:15px;font-weight:700;";
 
-  const terrenoEntra = (payload.terreno_proprio !== 'SIM' && payload.operacao === 'TERRENO_E_CONSTRUCAO');
+  const terrenoEntra = (!isProprio && payload.terreno_proprio !== 'SIM' && payload.operacao === 'TERRENO_E_CONSTRUCAO');
 
   const pad = calc.padraoInfo;
   const padBox = `
@@ -463,41 +471,38 @@ function renderReport(payload, calc){
       <div style="${strongStyle}">Resumo do Imóvel</div>
       <div><b>Valor da Obra:</b> ${formatBRL(calc.valorObra)}</div>
       ${terrenoEntra ? `<div><b>Valor do Terreno:</b> ${formatBRL(calc.valorTerrenoCalc)}</div>` : ``}
-      <div style="margin-top:6px"><b>Total (Terreno + Construção):</b> ${formatBRL(calc.totalTerrenoConstrucao)}</div>
+      <div style="margin-top:6px"><b>Total:</b> ${formatBRL(calc.totalTerrenoConstrucao)}</div>
     </div>
   `;
-  
-  const finBox = (payload.tipo_financiamento === 'PROPRIO')
-  ? `
-    <div style="${boxStyle}">
-      <div style="${strongStyle}">Composição (Recursos próprios)</div>
-      <div><b>Total (Construção):</b> ${formatBRL(calc.totalTerrenoConstrucao)}</div>
-      <div><b>Entrada:</b> ${formatBRL(calc.entrada)}</div>
-      <div style="margin-top:8px"><b>Saldo a negociar durante a fase de obra:</b> ${formatBRL(calc.saldoNegociar)}</div>
-    </div>
-  `
-  : `
-    <div style="${boxStyle}">
-      <div style="${strongStyle}">Composição do Financiamento</div>
-      <div><b>Total (Terreno + Construção):</b> ${formatBRL(calc.totalTerrenoConstrucao)}</div>
-      <div><b>Entrada:</b> ${formatBRL(calc.entrada)}</div>
-      <div><b>Subsídio:</b> ${formatBRL(calc.subsidio)}</div>
-      <div><b>Valor por fora:</b> ${formatBRL(calc.porFora)}</div>
-      <div style="margin-top:8px"><b>Valor a financiar (calculado):</b> ${formatBRL(calc.valorAFinanciar)}</div>
-      <div class="muted" style="font-size:12px;margin-top:6px">
-        Fórmula: Total − Entrada − Subsídio − Por fora
+
+  const finBox = isProprio
+    ? `
+      <div style="${boxStyle}">
+        <div style="${strongStyle}">Composição (Recursos próprios)</div>
+        <div><b>Total (Construção):</b> ${formatBRL(calc.totalTerrenoConstrucao)}</div>
+        <div><b>Entrada:</b> ${formatBRL(calc.entrada)}</div>
+        <div style="margin-top:8px"><b>Saldo a negociar durante a fase de obra:</b> ${formatBRL(calc.saldoNegociar || 0)}</div>
       </div>
-    </div>
-  `;
-  
-  // Projetos (automático por laje)
+    `
+    : `
+      <div style="${boxStyle}">
+        <div style="${strongStyle}">Composição do Financiamento</div>
+        <div><b>Total (Terreno + Construção):</b> ${formatBRL(calc.totalTerrenoConstrucao)}</div>
+        <div><b>Entrada:</b> ${formatBRL(calc.entrada)}</div>
+        <div><b>Subsídio:</b> ${formatBRL(calc.subsidio)}</div>
+        <div><b>Valor por fora:</b> ${formatBRL(calc.porFora)}</div>
+        <div style="margin-top:8px"><b>Valor a financiar (calculado):</b> ${formatBRL(calc.valorAFinanciar)}</div>
+        <div class="muted" style="font-size:12px;margin-top:6px">Fórmula: Total − Entrada − Subsídio − Por fora</div>
+      </div>
+    `;
+
+  // Projeto
   const projetoLabel = (calc.projetoTipo === 'COM_ESTRUTURAL') ? 'Projeto (com estrutural)' : 'Projeto (sem estrutural)';
   const projetoExpl = `${formatBRL(calc.projetoRateM2)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.projetoValor)}`;
 
-  // Taxa financiamento
+  // Taxa financiamento e itbi/tao explicações só quando não próprio
   const taxaExpl = `${formatPct(calc.taxaFinPerc)} × ${formatBRL(calc.valorFinBase)} = ${formatBRL(calc.taxaFinR)}`;
 
-  // ITBI
   let itbiExpl = '—';
   if(calc.itbi === 0){
     if(payload.operacao !== 'TERRENO_E_CONSTRUCAO' || payload.terreno_proprio === 'SIM'){
@@ -511,61 +516,76 @@ function renderReport(payload, calc){
     itbiExpl = `${formatPct(calc.itbiPercAplicada)} × ${formatBRL(calc.valorTerrenoCalc)} = ${formatBRL(calc.itbi)}`;
   }
 
-  // TAO
   const taoExpl = (payload.tipo_financiamento === 'MCMV')
     ? `${formatPct(calc.taoPerc)} × ${formatBRL(calc.valorFinBase)} = ${formatBRL(calc.tao)}`
     : `${formatBRL(calc.taoFixo)} (fixo)`;
 
   // Calçada
   const calcadaML = num(payload.calcada_metros_lineares);
-  const calcadaExpl = (payload.cidade === 'BOA_VISTA' && payload.possui_calcada === 'NAO')
+  const calcadaExpl = (payload.cidade === "BOA_VISTA" && payload.possui_calcada === "NAO")
     ? `${formatBRL(calc.calcadaPrecoML)} / m × ${calcadaML.toLocaleString('pt-BR')} m = ${formatBRL(calc.calcada)}`
     : 'Não aplicável.';
 
-  // Alvará / Habite-se (tarifa m²)
+  // Alvará / Habite-se
   const alvaraExpl = `${formatBRL(calc.alvaraRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.alvara)}`;
   const habiteExpl = `${formatBRL(calc.habiteRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.habite)}`;
 
+  // Condicionais
   const showLaje = calc.temLaje && calc.laje > 0;
   const showCno = (calc.area > 70 && calc.cno > 0);
-  const isProprio = (payload.tipo_financiamento === 'PROPRIO');
-  
+
+  // Tabela principal - respeitando o modo PROPRIO (não mostra itens de banco)
   const custos = `
     <table class="table">
       <tr><td><b>Construção base</b></td><td style="text-align:right"><b>${formatBRL(calc.custoBase)}</b></td></tr>
 
       ${showLaje ? `<tr><td><b>Laje</b> <div class="muted" style="font-size:11px">${formatBRL(calc.lajeAd)} / m² × ${calc.area.toLocaleString('pt-BR')} m²</div></td><td style="text-align:right"><b>${formatBRL(calc.laje)}</b></td></tr>` : ``}
-      
+
       <tr>
         <td><b>${projetoLabel}</b><div class="muted" style="font-size:11px">${projetoExpl}</div></td>
         <td style="text-align:right"><b>${formatBRL(calc.projetoValor)}</b></td>
       </tr>
-      
-      <tr><td><b>ART's do CREA</b></td><td style="text-align:right"><b>${formatBRL(calc.crea)}</b></td></tr>
+
+      <tr>
+        <td><b>ART's do CREA</b>
+          <div class="muted" style="font-size:11px">Faixa por área: ${calc.area.toLocaleString('pt-BR')} m²</div>
+        </td>
+        <td style="text-align:right"><b>${formatBRL(calc.crea || 0)}</b></td>
+      </tr>
 
       <tr>
         <td><b>Alvará de Construção</b><div class="muted" style="font-size:11px">${alvaraExpl}</div></td>
         <td style="text-align:right"><b>${formatBRL(calc.alvara)}</b></td>
       </tr>
-      
-      ${isProprio ? `` : `<tr><td><b>Vistoria Caixa</b></td><td style="text-align:right"><b>${formatBRL(calc.vistoria)}</b></td></tr>`}
 
-      ${isProprio ? `` : `<tr><td><b>Taxa de financiamento</b><div class="muted" style="font-size:11px">${taxaExpl}</div></td><td style="text-align:right"><b>${formatBRL(calc.taxaFinR)}</b></td></tr>`}
-      
-      <tr>
-        <td><b>ITBI (terreno)</b><div class="muted" style="font-size:11px">${itbiExpl}</div></td>
-        <td style="text-align:right"><b>${formatBRL(calc.itbi)}</b></td>
-      </tr>
-      
-      ${isProprio ? `` : `<tr><td><b>Registro de Alienação</b></td><td style="text-align:right"><b>${formatBRL(calc.regAlienacao)}</b></td></tr>`}
-      
-      ${isProprio ? `` : `<tr><td><b>TAO</b><div class="muted" style="font-size:11px">${taoExpl}</div></td><td style="text-align:right"><b>${formatBRL(calc.tao)}</b></td></tr>`}
-      
+      ${!isProprio ? `
+        <tr><td><b>Vistoria Caixa</b></td><td style="text-align:right"><b>${formatBRL(calc.vistoria)}</b></td></tr>
+
+        <tr>
+          <td><b>Taxa de financiamento</b><div class="muted" style="font-size:11px">${taxaExpl}</div></td>
+          <td style="text-align:right"><b>${formatBRL(calc.taxaFinR)}</b></td>
+        </tr>
+      ` : ``}
+
+      ${!isProprio ? `
+        <tr>
+          <td><b>ITBI (terreno)</b><div class="muted" style="font-size:11px">${itbiExpl}</div></td>
+          <td style="text-align:right"><b>${formatBRL(calc.itbi)}</b></td>
+        </tr>
+
+        <tr><td><b>Registro de Alienação</b></td><td style="text-align:right"><b>${formatBRL(calc.regAlienacao)}</b></td></tr>
+
+        <tr>
+          <td><b>TAO</b><div class="muted" style="font-size:11px">${taoExpl}</div></td>
+          <td style="text-align:right"><b>${formatBRL(calc.tao)}</b></td>
+        </tr>
+      ` : ``}
+
       <tr>
         <td><b>Calçada</b><div class="muted" style="font-size:11px">${calcadaExpl}</div></td>
         <td style="text-align:right"><b>${formatBRL(calc.calcada)}</b></td>
       </tr>
-      
+
       <tr>
         <td><b>Habite-se</b><div class="muted" style="font-size:11px">${habiteExpl}</div></td>
         <td style="text-align:right"><b>${formatBRL(calc.habite)}</b></td>
@@ -582,34 +602,30 @@ function renderReport(payload, calc){
     </table>
   `;
 
-  $('resBody').innerHTML = `
-    ${padBox}
-    ${resumoImovel}
-    ${finBox}
-    ${custos}
-  `;
-
+  $('resBody').innerHTML = `${padBox}${resumoImovel}${finBox}${custos}`;
   $('resCustas').textContent = formatBRL(calc.custasPrevistas);
   $('resTotal').textContent = formatBRL(calc.totalGeral);
 }
 
+// ===== load after login =====
 async function loadAfterLogin(token){
   const cfg = await getConfig(token);
-  if (!cfg.ok) throw new Error(cfg.error || 'Erro ao carregar Config');
+  if(!cfg.ok) throw new Error(cfg.error || 'Erro ao carregar Config');
   CONFIG = cfg.config;
 
   const ft = await getFeeTables(token);
-  if (ft.ok) FEE_TABLES = ft.tables;
+  if(ft.ok) FEE_TABLES = ft.tables;
 
   const c = await getCompany(token);
-  if (c.ok) COMPANY = c.company;
+  if(c.ok) COMPANY = c.company;
 
   const b = await getBroker(token);
-  if (b.ok) BROKER = b.broker;
+  if(b.ok) BROKER = b.broker;
 
   renderCompanyBroker();
 }
 
+// ===== load lead from CRM =====
 function fillFormFromLead(lead){
   if(!lead) return;
 
@@ -639,10 +655,11 @@ function fillFormFromLead(lead){
   $('possui_calcada').value = lead.possui_calcada || 'SIM';
   $('calcada_metros_lineares').value = lead.calcada_metros_lineares || '';
 
-  toggleTerrenoUI();
+  toggleTipoFinUI();
   toggleCalcadaUI();
 }
 
+// ===== actions =====
 $('btnLogin').onclick = async ()=>{
   try{
     const r = await apiPost({action:'login', email:$('email').value, password:$('password').value});
@@ -651,8 +668,7 @@ $('btnLogin').onclick = async ()=>{
     setSession(r.token, r.user);
     refreshMenu();
 
-    // troca obrigatória
-    if (r.user && r.user.mustChangePassword){
+    if (r.user && r.user.mustChangePassword) {
       lockForPasswordChange();
       showMsg($('msg'), 'Você precisa trocar sua senha para continuar.', false);
       return;
@@ -675,8 +691,8 @@ $('btnLogin').onclick = async ()=>{
 function doLogout(){
   clearSession();
   CONFIG=null; COMPANY=null; BROKER=null; FEE_TABLES=null;
-  refreshMenu();
   unlockAfterPasswordChange();
+  refreshMenu();
   showMsg($('msg'), 'Sessão encerrada.', true);
 }
 $('btnLogout').onclick = doLogout;
@@ -694,9 +710,10 @@ $('btnChangePass').onclick = async ()=>{
     if(!r.ok) return showMsg($('msgPass'), r.error || 'Erro ao trocar senha.', false);
 
     showMsg($('msgPass'), 'Senha alterada com sucesso. Faça login novamente.', true);
+
     clearSession();
-    refreshMenu();
     unlockAfterPasswordChange();
+    refreshMenu();
     $('newPass').value = '';
     $('newPass2').value = '';
   } catch(e){
@@ -739,29 +756,28 @@ $('btnSalvar').onclick = async ()=>{
 
 $('btnPDF').onclick = ()=> window.print();
 
+// binds
 $('operacao').onchange = toggleTerrenoUI;
 $('terreno_proprio').onchange = toggleTerrenoUI;
 $('cidade').onchange = toggleCalcadaUI;
 $('possui_calcada').onchange = toggleCalcadaUI;
 $('tipo_financiamento').onchange = toggleTipoFinUI;
 
+// init
 setDefaults();
 refreshMenu();
-toggleTerrenoUI();
-toggleCalcadaUI();
 toggleTipoFinUI();
+toggleCalcadaUI();
 
 (async function boot(){
   const {token,user} = getSession();
   if(token){
     try{
       refreshMenu();
-
       if(user && user.mustChangePassword){
         lockForPasswordChange();
         return;
       }
-
       await loadAfterLogin(token);
 
       const toLoad = getLeadToLoad();
@@ -778,5 +794,3 @@ toggleTipoFinUI();
 </script>
 </body>
 </html>
-
-
