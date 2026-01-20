@@ -525,11 +525,28 @@ function renderReport(payload, calc){
   const calcadaExpl = (payload.cidade === "BOA_VISTA" && payload.possui_calcada === "NAO")
     ? `${formatBRL(calc.calcadaPrecoML)} / m × ${calcadaML.toLocaleString('pt-BR')} m = ${formatBRL(calc.calcada)}`
     : 'Não aplicável.';
-
+  
   // Alvará / Habite-se
-  const alvaraExpl = `${formatBRL(calc.alvaraRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.alvara)}`;
-  const habiteExpl = `${formatBRL(calc.habiteRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.habite)}`;
-
+  let alvaraExpl = `${formatBRL(calc.alvaraRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.alvara)}`;
+  
+  if(payload.cidade === "CANTA"){
+    const tarifa = num(CONFIG.CANTA_ALVARA_TARIFA) || 0;
+    const qtdAut = num(CONFIG.CANTA_ALVARA_AUTENT_QTDE) || 20;
+    const fatorLeg = num(CONFIG.CANTA_ALVARA_LEGALIZACAO_FATOR) || 0.5;
+  
+    const autent = tarifa * qtdAut;
+    const execucao = tarifa * calc.area;
+    const legalizacao = execucao * fatorLeg;
+  
+    alvaraExpl =
+      `Autenticação: ${formatBRL(tarifa)} × ${qtdAut} = ${formatBRL(autent)} | ` +
+      `Execução: ${formatBRL(tarifa)} × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(execucao)} | ` +
+      `Legalização: 50% de Execução = ${formatBRL(legalizacao)} | ` +
+      `Total: ${formatBRL(calc.alvara)}`;
+  }
+  
+  let habiteExpl = `${formatBRL(calc.habiteRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.habite)}`;
+  
   // Condicionais
   const showLaje = calc.temLaje && calc.laje > 0;
   const showCno = (calc.area > 70 && calc.cno > 0);
@@ -794,3 +811,4 @@ toggleCalcadaUI();
 </script>
 </body>
 </html>
+
