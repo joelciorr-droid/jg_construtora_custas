@@ -279,22 +279,23 @@ function calcTotal(payload, config){
   let habiteRate = 0;
   let habite = 0;
   
+  let canta_autent=0, canta_execucao=0, canta_legalizacao=0;
   if(payload.cidade === "CANTA"){
-    const tarifa = num(config.CANTA_ALVARA_TARIFA) || 0;
-    const qtdAut = num(config.CANTA_ALVARA_AUTENT_QTDE) || 20;
-    const fatorLeg = num(config.CANTA_ALVARA_LEGALIZACAO_FATOR) || 0.5;
-    
     const autent = tarifa * qtdAut;
     const execucao = tarifa * area;
     const legalizacao = execucao * fatorLeg;
     
-    alvaraRate = tarifa; // só pra exibir o valor base
+    alvaraRate = tarifa;
     alvara = autent + execucao + legalizacao;
     
-    // Habite-se Cantá
+    // guarde para o relatório/resumo
+    var canta_autent = autent;
+    var canta_execucao = execucao;
+    var canta_legalizacao = legalizacao;
+    
     habiteRate = num(config.CANTA_HABITESE_TARIFA) || tarifa;
     habite = habiteRate * area;
-    
+
   } else {
     // Boa Vista (mantém via tabela por faixa)
     alvaraRate = feeByRange(
@@ -446,11 +447,16 @@ function calcTotal(payload, config){
     dataSim,
     dataVal,
     validadeDias,
-
+    
+    canta_autent: (payload.cidade === "CANTA") ? canta_autent : 0,
+    canta_execucao: (payload.cidade === "CANTA") ? canta_execucao : 0,
+    canta_legalizacao: (payload.cidade === "CANTA") ? canta_legalizacao : 0,
+    
     // totalizadores
     custasPrevistas,
     totalGeral
   };
 }
+
 
 
