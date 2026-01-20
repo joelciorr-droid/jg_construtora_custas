@@ -272,24 +272,44 @@ function calcTotal(payload, config){
   const creaTable = t["CREA_Faixas_Area"] || t["CREA"] || t["CREA_FAIXAS_AREA"] || null;
   const crea = amountByRangeFlat(creaTable, area);
 
-  // Alvará (tarifa/m² * área)
-  const alvaraRate = feeByRange(
-    payload.cidade === "BOA_VISTA" ? t["Alvara_BV_Faixas_Area"] :
-    payload.cidade === "CANTA" ? t["Alvara_Canta_Faixas_Area"] :
-    null,
-    area
-  );
-  const alvara = alvaraRate * area;
+    // ===== ALVARÁ / HABITE-SE =====
+  let alvaraRate = 0;
+  let alvara = 0;
 
-  // Habite-se (tarifa/m² * área)
-  const habiteRate = feeByRange(
-    payload.cidade === "BOA_VISTA" ? t["HabiteSe_BV_Faixas_Area"] :
-    payload.cidade === "CANTA" ? t["HabiteSe_Canta_Faixas_Area"] :
-    null,
-    area
-  );
-  const habite = habiteRate * area;
-
+  let habiteRate = 0;
+  let habite = 0;
+  
+  if(payload.cidade === "CANTA"){
+    const tarifa = num(config.CANTA_ALVARA_TARIFA) || 0;
+    const qtdAut = num(config.CANTA_ALVARA_AUTENT_QTDE) || 20;
+    const fatorLeg = num(config.CANTA_ALVARA_LEGALIZACAO_FATOR) || 0.5;
+    
+    const autent = tarifa * qtdAut;
+    const execucao = tarifa * area;
+    const legalizacao = execucao * fatorLeg;
+    
+    alvaraRate = tarifa; // só pra exibir o valor base
+    alvara = autent + execucao + legalizacao;
+    
+    // Habite-se Cantá
+    habiteRate = num(config.CANTA_HABITESE_TARIFA) || tarifa;
+    habite = habiteRate * area;
+    
+  } else {
+    // Boa Vista (mantém via tabela por faixa)
+    alvaraRate = feeByRange(
+      payload.cidade === "BOA_VISTA" ? t["Alvara_BV_Faixas_Area"] : null,
+      area
+    );
+    alvara = alvaraRate * area;
+    
+    habiteRate = feeByRange(
+      payload.cidade === "BOA_VISTA" ? t["HabiteSe_BV_Faixas_Area"] : null,
+      area
+    );
+    habite = habiteRate * area;
+  }
+  
   // CNO somente se >70m²
   let cno = 0;
   if(area > 70){
@@ -432,4 +452,5 @@ function calcTotal(payload, config){
     totalGeral
   };
 }
+
 
