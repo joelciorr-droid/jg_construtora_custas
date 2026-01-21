@@ -743,6 +743,12 @@ async function boot(){
         return;
       }
       await loadAfterLogin(token);
+      const toLoad = getLeadToLoad();
+      if(toLoad){
+        fillFormFromLead(toLoad);
+        clearLeadToLoad();
+        showMsg($('msg2'), 'Lead carregado do CRM. Você pode recalcular e salvar novo histórico.', true);
+      }
     }catch(_){
       doLogout();
     }
@@ -751,7 +757,78 @@ async function boot(){
 boot();
 
 // helper (pra não quebrar caso venha do CRM depois)
-function fillFormFromLead(){ /* opcional */ }
+function fillFormFromLead(lead){
+  if(!lead) return;
+
+  // Pode vir como {payload:{...}} ou já direto
+  const p = lead.payload || lead;
+
+  // helper
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.value = (val === undefined || val === null) ? "" : String(val);
+  };
+  const setSel = (id, val) => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(val === undefined || val === null || val === "") return;
+    el.value = String(val);
+  };
+
+  // ID do lead (pra manter histórico)
+  const leadId = p.lead_id || p.leadId || p.id || "";
+  if(leadId){
+    const telEl = document.getElementById("cliente_telefone");
+    if(telEl) telEl.dataset.leadId = leadId;
+  }
+
+  // Campos básicos
+  setVal("cliente_nome", p.cliente_nome);
+  setVal("cliente_telefone", p.cliente_telefone);
+  setVal("data_simulacao", p.data_simulacao || todayISO());
+  setVal("validade_dias", p.validade_dias);
+
+  // Seleções principais (importante setar antes dos toggles)
+  setSel("tipo_financiamento", p.tipo_financiamento);
+  setSel("cidade", p.cidade);
+  setSel("operacao", p.operacao);
+  setSel("terreno_proprio", p.terreno_proprio);
+
+  // Agora aplica regras de UI
+  toggleTipoFinUI();
+  toggleTerrenoUI();
+  toggleCalcadaUI();
+
+  // Campos que podem ser ocultados pela UI (preenche mesmo assim)
+  setVal("valor_terreno", p.valor_terreno);
+  setVal("renda_bruta_familiar", p.renda_bruta_familiar);
+
+  // Obra
+  setVal("area_m2", p.area_m2);
+  setSel("padrao", p.padrao);
+  setSel("laje", p.laje);
+
+  // Banco / composição
+  setVal("valor_financiado", p.valor_financiado);
+  setVal("entrada", p.entrada);
+
+  // Esses dois somem em PROPRIO, mas pode preencher (não atrapalha)
+  setVal("subsidio", p.subsidio);
+  setVal("valor_por_fora", p.valor_por_fora);
+
+  // Calçada
+  setSel("possui_calcada", p.possui_calcada || "SIM");
+  toggleCalcadaUI();
+  setVal("calcada_metros_lineares", p.calcada_metros_lineares);
+
+  // Depois de preencher, recalcula a UI novamente
+  toggleTipoFinUI();
+  toggleTerrenoUI();
+  toggleCalcadaUI();
+}
+
 </script>
 </body>
 </html>
+
