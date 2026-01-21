@@ -9,7 +9,6 @@
 <body>
 <div class="container">
 
-  <!-- Top menu -->
   <div class="card no-print" style="display:flex;gap:10px;align-items:center;justify-content:space-between">
     <div style="display:flex;gap:10px;align-items:center">
       <b>JG | Simulador</b>
@@ -23,7 +22,6 @@
     </div>
   </div>
 
-  <!-- LOGIN -->
   <div class="card no-print" id="loginCard">
     <h1>JG | Proposta de Construção</h1>
     <div class="muted">Acesso exclusivo para corretores autorizados</div>
@@ -49,7 +47,6 @@
     <div id="msg" style="margin-top:12px"></div>
   </div>
 
-  <!-- TROCA DE SENHA OBRIGATÓRIA -->
   <div class="card no-print" id="changePassCard" style="display:none">
     <h2>Troca de senha obrigatória</h2>
     <div class="muted">Defina sua nova senha para continuar.</div>
@@ -76,7 +73,6 @@
 
   <div class="grid grid-2" id="appGrid" style="margin-top:16px">
 
-    <!-- FORM -->
     <div class="card no-print">
       <h2>Dados do Cliente</h2>
       <div class="hr"></div>
@@ -233,7 +229,6 @@
       <div id="msg2" style="margin-top:12px"></div>
     </div>
 
-    <!-- RESUMO / PDF -->
     <div class="card">
       <div class="print-area" id="printArea">
 
@@ -290,12 +285,10 @@
 <script>
 let CONFIG=null, COMPANY=null, BROKER=null;
 
-// ===== util msg =====
 function showMsg(el, txt, ok=true){
   el.innerHTML = '<div class="notice '+(ok?'ok':'err')+'">'+txt+'</div>';
 }
 
-// ===== lock change password =====
 function lockForPasswordChange(){
   $('changePassCard').style.display = 'block';
   $('appGrid').style.display = 'none';
@@ -305,7 +298,6 @@ function unlockAfterPasswordChange(){
   $('appGrid').style.display = '';
 }
 
-// ===== menu =====
 function refreshMenu(){
   const {token,user}=getSession();
   $('whoMini').textContent = token ? (user.name+' ('+user.role+')') : '';
@@ -318,13 +310,11 @@ function refreshMenu(){
   $('who').textContent = token ? (user.name+' ('+user.role+')') : '';
 }
 
-// ===== UI toggles =====
 function toggleTerrenoUI(){
   const op = $('operacao').value;
   const tp = $('terreno_proprio').value;
   const tf = $('tipo_financiamento').value;
 
-  // Em recursos próprios: sempre construção apenas + terreno próprio
   if(tf === 'PROPRIO'){
     $('wrap_valor_terreno').style.display = 'none';
     $('wrap_renda').style.display = 'none';
@@ -377,12 +367,10 @@ function toggleTipoFinUI(){
   toggleTerrenoUI();
 }
 
-// ===== defaults =====
 function setDefaults(){
   $('data_simulacao').value = todayISO();
 }
 
-// ===== company/broker header =====
 function renderCompanyBroker(){
   if(COMPANY){
     $('c_nome').textContent = COMPANY.nome_fantasia || '—';
@@ -402,7 +390,6 @@ function renderCompanyBroker(){
   }
 }
 
-// ===== read payload =====
 function readPayload(){
   let lead_id = $('cliente_telefone').dataset.leadId || '';
   if(!lead_id){
@@ -433,7 +420,6 @@ function readPayload(){
   };
 }
 
-// ===== render report =====
 function renderReport(payload, calc){
   const isProprio = (payload.tipo_financiamento === 'PROPRIO');
   const validadeDate = calc.dataVal ? formatDateBR(calc.dataVal) : '—';
@@ -496,11 +482,23 @@ function renderReport(payload, calc){
       </div>
     `;
 
-  // Projeto
   const projetoLabel = (calc.projetoTipo === 'COM_ESTRUTURAL') ? 'Projeto (com estrutural)' : 'Projeto (sem estrutural)';
   const projetoExpl = `${formatBRL(calc.projetoRateM2)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.projetoValor)}`;
 
-  // Taxa financiamento e itbi/tao explicações só quando não próprio
+  // Alvará/Habite-se explicações (Cantá composto)
+  let alvaraExpl = `${formatBRL(calc.alvaraRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.alvara)}`;
+  let habiteExpl = `${formatBRL(calc.habiteRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.habite)}`;
+
+  if(payload.cidade === "CANTA"){
+    alvaraExpl =
+      `Autenticação: ${formatBRL(calc.alvaraRate)} × 20 = ${formatBRL(calc.canta_autent)} | ` +
+      `Execução: ${formatBRL(calc.alvaraRate)} × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.canta_execucao)} | ` +
+      `Legalização: 50% da Execução = ${formatBRL(calc.canta_legalizacao)} | ` +
+      `Total: ${formatBRL(calc.alvara)}`;
+
+    habiteExpl = `${formatBRL(calc.habiteRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.habite)}`;
+  }
+
   const taxaExpl = `${formatPct(calc.taxaFinPerc)} × ${formatBRL(calc.valorFinBase)} = ${formatBRL(calc.taxaFinR)}`;
 
   let itbiExpl = '—';
@@ -520,32 +518,34 @@ function renderReport(payload, calc){
     ? `${formatPct(calc.taoPerc)} × ${formatBRL(calc.valorFinBase)} = ${formatBRL(calc.tao)}`
     : `${formatBRL(calc.taoFixo)} (fixo)`;
 
-  // Calçada
   const calcadaML = num(payload.calcada_metros_lineares);
   const calcadaExpl = (payload.cidade === "BOA_VISTA" && payload.possui_calcada === "NAO")
     ? `${formatBRL(calc.calcadaPrecoML)} / m × ${calcadaML.toLocaleString('pt-BR')} m = ${formatBRL(calc.calcada)}`
     : 'Não aplicável.';
-  
-  // Alvará / Habite-se
-  let alvaraExpl = `${formatBRL(calc.alvaraRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.alvara)}`;
-  let habiteExpl = `${formatBRL(calc.habiteRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.habite)}`;
-  
-  if(payload.cidade === "CANTA"){
-    alvaraExpl =
-      `Autenticação: ${formatBRL(calc.alvaraRate)} × 20 = ${formatBRL(calc.canta_autent)} | ` +
-      `Execução: ${formatBRL(calc.alvaraRate)} × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.canta_execucao)} | ` +
-      `Legalização: 50% da Execução = ${formatBRL(calc.canta_legalizacao)} | ` +
-      `Total: ${formatBRL(calc.alvara)}`;
-  
-    habiteExpl =
-      `${formatBRL(calc.habiteRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.habite)}`;
-  }
-  
-  // Condicionais
+
   const showLaje = calc.temLaje && calc.laje > 0;
   const showCno = (calc.area > 70 && calc.cno > 0);
 
-  // Tabela principal - respeitando o modo PROPRIO (não mostra itens de banco)
+  // ===== ORDEM DO ALVARÁ:
+  // - BOA_VISTA: após CREA
+  // - CANTA: após Alienação (se existir); em PROPRIO (sem alienação) após CREA
+  const isCanta = (payload.cidade === "CANTA");
+  const isBV = (payload.cidade === "BOA_VISTA");
+
+  const rowAlvara = `
+    <tr>
+      <td><b>Alvará de Construção</b><div class="muted" style="font-size:11px">${alvaraExpl}</div></td>
+      <td style="text-align:right"><b>${formatBRL(calc.alvara)}</b></td>
+    </tr>
+  `;
+
+  const rowHabite = `
+    <tr>
+      <td><b>Habite-se</b><div class="muted" style="font-size:11px">${habiteExpl}</div></td>
+      <td style="text-align:right"><b>${formatBRL(calc.habite)}</b></td>
+    </tr>
+  `;
+
   const custos = `
     <table class="table">
       <tr><td><b>Construção base</b></td><td style="text-align:right"><b>${formatBRL(calc.custoBase)}</b></td></tr>
@@ -558,16 +558,11 @@ function renderReport(payload, calc){
       </tr>
 
       <tr>
-        <td><b>ART's do CREA</b>
-          <div class="muted" style="font-size:11px">Faixa por área: ${calc.area.toLocaleString('pt-BR')} m²</div>
-        </td>
+        <td><b>ART's do CREA</b><div class="muted" style="font-size:11px">Faixa por área: ${calc.area.toLocaleString('pt-BR')} m²</div></td>
         <td style="text-align:right"><b>${formatBRL(calc.crea || 0)}</b></td>
       </tr>
 
-      <tr>
-        <td><b>Alvará de Construção</b><div class="muted" style="font-size:11px">${alvaraExpl}</div></td>
-        <td style="text-align:right"><b>${formatBRL(calc.alvara)}</b></td>
-      </tr>
+      ${isBV ? rowAlvara : (isCanta && isProprio ? rowAlvara : ``)}
 
       ${!isProprio ? `
         <tr><td><b>Vistoria Caixa</b></td><td style="text-align:right"><b>${formatBRL(calc.vistoria)}</b></td></tr>
@@ -576,15 +571,15 @@ function renderReport(payload, calc){
           <td><b>Taxa de financiamento</b><div class="muted" style="font-size:11px">${taxaExpl}</div></td>
           <td style="text-align:right"><b>${formatBRL(calc.taxaFinR)}</b></td>
         </tr>
-      ` : ``}
 
-      ${!isProprio ? `
         <tr>
           <td><b>ITBI (terreno)</b><div class="muted" style="font-size:11px">${itbiExpl}</div></td>
           <td style="text-align:right"><b>${formatBRL(calc.itbi)}</b></td>
         </tr>
 
         <tr><td><b>Registro de Alienação</b></td><td style="text-align:right"><b>${formatBRL(calc.regAlienacao)}</b></td></tr>
+
+        ${isCanta ? rowAlvara : ``}
 
         <tr>
           <td><b>TAO</b><div class="muted" style="font-size:11px">${taoExpl}</div></td>
@@ -597,17 +592,12 @@ function renderReport(payload, calc){
         <td style="text-align:right"><b>${formatBRL(calc.calcada)}</b></td>
       </tr>
 
-      <tr>
-        <td><b>Habite-se</b><div class="muted" style="font-size:11px">${habiteExpl}</div></td>
-        <td style="text-align:right"><b>${formatBRL(calc.habite)}</b></td>
-      </tr>
+      ${rowHabite}
 
       ${showCno ? `<tr><td><b>CNO (Receita Federal)</b></td><td style="text-align:right"><b>${formatBRL(calc.cno)}</b></td></tr>` : ``}
 
       <tr>
-        <td><b>Averbação da Obra</b>
-          <div class="muted" style="font-size:11px">Faixa pelo valor da obra: ${formatBRL(calc.valorObra)}</div>
-        </td>
+        <td><b>Averbação da Obra</b><div class="muted" style="font-size:11px">Faixa pelo valor da obra: ${formatBRL(calc.valorObra)}</div></td>
         <td style="text-align:right"><b>${formatBRL(calc.averbacao)}</b></td>
       </tr>
     </table>
@@ -618,7 +608,6 @@ function renderReport(payload, calc){
   $('resTotal').textContent = formatBRL(calc.totalGeral);
 }
 
-// ===== load after login =====
 async function loadAfterLogin(token){
   const cfg = await getConfig(token);
   if(!cfg.ok) throw new Error(cfg.error || 'Erro ao carregar Config');
@@ -636,41 +625,6 @@ async function loadAfterLogin(token){
   renderCompanyBroker();
 }
 
-// ===== load lead from CRM =====
-function fillFormFromLead(lead){
-  if(!lead) return;
-
-  $('cliente_nome').value = lead.cliente_nome || '';
-  $('cliente_telefone').value = lead.cliente_telefone || '';
-  if(lead.lead_id) $('cliente_telefone').dataset.leadId = lead.lead_id;
-
-  $('data_simulacao').value = lead.data_simulacao || todayISO();
-  $('validade_dias').value = lead.validade_dias || '';
-
-  $('tipo_financiamento').value = lead.tipo_financiamento || 'MCMV';
-  $('cidade').value = lead.cidade || 'BOA_VISTA';
-  $('operacao').value = lead.operacao || 'TERRENO_E_CONSTRUCAO';
-  $('terreno_proprio').value = lead.terreno_proprio || 'NAO';
-  $('valor_terreno').value = lead.valor_terreno || '0';
-  $('renda_bruta_familiar').value = lead.renda_bruta_familiar || '';
-
-  $('area_m2').value = lead.area_m2 || '';
-  $('padrao').value = lead.padrao || 'A';
-  $('laje').value = lead.laje || 'NAO';
-  $('valor_financiado').value = lead.valor_financiado || '';
-
-  $('entrada').value = lead.entrada || '';
-  $('subsidio').value = lead.subsidio || '';
-  $('valor_por_fora').value = lead.valor_por_fora || '';
-
-  $('possui_calcada').value = lead.possui_calcada || 'SIM';
-  $('calcada_metros_lineares').value = lead.calcada_metros_lineares || '';
-
-  toggleTipoFinUI();
-  toggleCalcadaUI();
-}
-
-// ===== actions =====
 $('btnLogin').onclick = async ()=>{
   try{
     const r = await apiPost({action:'login', email:$('email').value, password:$('password').value});
@@ -774,13 +728,12 @@ $('cidade').onchange = toggleCalcadaUI;
 $('possui_calcada').onchange = toggleCalcadaUI;
 $('tipo_financiamento').onchange = toggleTipoFinUI;
 
-// init
 setDefaults();
 refreshMenu();
 toggleTipoFinUI();
 toggleCalcadaUI();
 
-(async function boot(){
+async function boot(){
   const {token,user} = getSession();
   if(token){
     try{
@@ -790,20 +743,15 @@ toggleCalcadaUI();
         return;
       }
       await loadAfterLogin(token);
-
-      const toLoad = getLeadToLoad();
-      if(toLoad){
-        fillFormFromLead(toLoad);
-        clearLeadToLoad();
-        showMsg($('msg2'), 'Lead carregado do CRM.', true);
-      }
     }catch(_){
       doLogout();
     }
   }
-})();
+}
+boot();
+
+// helper (pra não quebrar caso venha do CRM depois)
+function fillFormFromLead(){ /* opcional */ }
 </script>
 </body>
 </html>
-
-
