@@ -17,10 +17,8 @@ function num(v){
   let s = String(v).trim();
   if (!s) return 0;
 
-  // remove tudo que não seja dígito, vírgula, ponto ou sinal
-  // resolve: "51 m²", "R$ 1.234,56", "51,00m²", "374.5"
   s = s.replace(/\s/g, "");
-  s = s.replace(/[^\d.,-]/g, "");
+  s = s.replace(/[^\d.,-]/g, ""); // limpa letras e símbolos
 
   const hasComma = s.includes(",");
   const hasDot = s.includes(".");
@@ -122,8 +120,8 @@ async function apiPost(payload){
 
   try {
     return JSON.parse(txt);
-  } catch (e){
-    throw new Error("Resposta não-JSON do WebApp. Verifique implantação/permissões. Trecho: " + txt.slice(0,160));
+  } catch {
+    throw new Error("Resposta não-JSON do WebApp. Verifique implantação/permissões. Trecho: " + txt.slice(0,180));
   }
 }
 
@@ -154,14 +152,13 @@ function pickAny(obj, keys){
 }
 
 function normalizeRow(r){
-  if(Array.isArray(r)){
-    return { min: r[0], max: r[1], fee: r[2] };
-  }
+  if(Array.isArray(r)) return { min: r[0], max: r[1], fee: r[2] };
   if(!r || typeof r !== "object") return { min: 0, max: 0, fee: 0 };
-  const min = pickAny(r, ["min","Min","MIN","minimo","Minimo","MINIMO"]);
-  const max = pickAny(r, ["max","Max","MAX","maximo","Maximo","MAXIMO"]);
-  const fee = pickAny(r, ["fee","Fee","FEE","valor","Valor","VALOR","value","Value","VALUE"]);
-  return { min, max, fee };
+  return {
+    min: pickAny(r, ["min","Min","MIN","minimo","Minimo","MINIMO"]),
+    max: pickAny(r, ["max","Max","MAX","maximo","Maximo","MAXIMO"]),
+    fee: pickAny(r, ["fee","Fee","FEE","valor","Valor","VALOR","value","Value","VALUE"])
+  };
 }
 
 function feeByRange(tableArr, x){
@@ -173,18 +170,13 @@ function feeByRange(tableArr, x){
     const max = num(r.max);
     const fee = num(r.fee);
     if(!Number.isFinite(min) || !Number.isFinite(max)) continue;
-    if (v >= min && v <= max) return fee;
+    if(v >= min && v <= max) return fee;
   }
   return 0;
 }
 
 function amountByRangeFlat(tableArr, x){
   return feeByRange(tableArr, x);
-}
-
-function amountByRangePerM2(tableArr, area){
-  const rate = feeByRange(tableArr, area);
-  return rate * num(area);
 }
 
 // ===== Padrões (descrição) =====
@@ -215,15 +207,10 @@ function padraoInfo(padrao, config){
 // ======================================================
 function calcTotal(payload, config){
   const area = num(payload.area_m2);
-  const padrao = payload.padrao;
-
   const isProprio = (payload.tipo_financiamento === "PROPRIO");
-  const pInfo = padraoInfo(padrao, config);
-  
-  // carregar tabelas por faixa
-  const t = FEE_TABLES || {};
-  
-  // base construção
+  const pInfo = padraoInfo(payload.padrao, config);
+
+  // base
   const custoBase = area * pInfo.m2;
 
   // laje
@@ -231,9 +218,7 @@ function calcTotal(payload, config){
   const temLaje = (payload.laje === "SIM");
   const laje = temLaje ? (area * lajeAd) : 0;
 
-  // projeto AUTOMÁTICO:
-  // sem laje -> sem estrutural
-  // com laje -> com estrutural
+  // projeto automático
   const projetoTipo = temLaje ? "COM_ESTRUTURAL" : "SEM_ESTRUTURAL";
   const projetoRateM2 = (projetoTipo === "COM_ESTRUTURAL")
     ? num(config.PROJ_COM_ESTR_M2)
@@ -243,17 +228,14 @@ function calcTotal(payload, config){
   // valor obra
   const valorObra = custoBase + laje;
 
-  // terreno (no PROPRIO é sempre construção apenas/terreno próprio)
+  // terreno (PROPRIO sempre construção apenas/terreno próprio)
   const terrenoProprio = (payload.terreno_proprio === "SIM") || isProprio;
-  const operacaoTerrenoConstrucao = (payload.operacao === "TERRENO_E_CONSTRUCAO") && !isProprio;
-  const valorTerrenoCalc = (!terrenoProprio && operacaoTerrenoConstrucao)
-    ? num(payload.valor_terreno)
-    : 0;
+  const operacaoTerrenoConstrucao = (!isProprio && payload.operacao === "TERRENO_E_CONSTRUCAO");
+  const valorTerrenoCalc = (!terrenoProprio && operacaoTerrenoConstrucao) ? num(payload.valor_terreno) : 0;
 
-  // total do imóvel (base de composição)
   const totalTerrenoConstrucao = valorTerrenoCalc + valorObra;
 
-  // composição (simulador / negociação)
+  // composição
   const entrada = num(payload.entrada);
   const subsidio = isProprio ? 0 : num(payload.subsidio);
   const porFora = isProprio ? 0 : num(payload.valor_por_fora);
@@ -261,88 +243,78 @@ function calcTotal(payload, config){
   let valorAFinanciar = totalTerrenoConstrucao - entrada - subsidio - porFora;
   if(valorAFinanciar < 0) valorAFinanciar = 0;
 
-  // Em recursos próprios: saldo a negociar
   const saldoNegociar = isProprio ? Math.max(0, totalTerrenoConstrucao - entrada) : 0;
 
-  // valor financiado base (pra fórmulas bancárias)
   const valorFinInput = num(payload.valor_financiado);
   const valorFinBase = (!isProprio && valorAFinanciar > 0) ? valorAFinanciar : valorFinInput;
-  
+
+  // tabelas
+  const t = FEE_TABLES || {};
+
   // CREA
-  const creaTable = t["CREA_Faixas_Area"] || t["CREA"] || t["CREA_FAIXAS_AREA"] || null;
+  const creaTable = t["CREA_Faixas_Area"] || t["CREA"] || null;
   const crea = amountByRangeFlat(creaTable, area);
 
-    // ===== ALVARÁ / HABITE-SE =====
-  let alvaraRate = 0;
-  let alvara = 0;
+  // ===== Alvará / Habite-se =====
+  let alvaraRate = 0, alvara = 0;
+  let habiteRate = 0, habite = 0;
+  let canta_autent = 0, canta_execucao = 0, canta_legalizacao = 0;
 
-  let habiteRate = 0;
-  let habite = 0;
-  
-  let canta_autent=0, canta_execucao=0, canta_legalizacao=0;
   if(payload.cidade === "CANTA"){
-    const autent = tarifa * qtdAut;
-    const execucao = tarifa * area;
-    const legalizacao = execucao * fatorLeg;
-    
+    const tarifa = num(config.CANTA_ALVARA_TARIFA);                 // 5.11
+    const qtdAut = num(config.CANTA_ALVARA_AUTENT_QTDE) || 20;      // 20
+    const fatorLeg = num(config.CANTA_ALVARA_LEGALIZACAO_FATOR) || 0.5;
+
+    canta_autent = tarifa * qtdAut;
+    canta_execucao = tarifa * area;
+    canta_legalizacao = canta_execucao * fatorLeg;
+
     alvaraRate = tarifa;
-    alvara = autent + execucao + legalizacao;
-    
-    // guarde para o relatório/resumo
-    var canta_autent = autent;
-    var canta_execucao = execucao;
-    var canta_legalizacao = legalizacao;
-    
-    habiteRate = num(config.CANTA_HABITESE_TARIFA) || tarifa;
+    alvara = canta_autent + canta_execucao + canta_legalizacao;
+
+    habiteRate = num(config.CANTA_HABITESE_TARIFA) || tarifa;       // 5.11
     habite = habiteRate * area;
 
-  } else {
-    // Boa Vista (mantém via tabela por faixa)
-    alvaraRate = feeByRange(
-      payload.cidade === "BOA_VISTA" ? t["Alvara_BV_Faixas_Area"] : null,
-      area
-    );
+  } else if(payload.cidade === "BOA_VISTA"){
+    // Boa Vista via tabelas por faixa: tarifa/m²
+    alvaraRate = feeByRange(t["Alvara_BV_Faixas_Area"], area);
     alvara = alvaraRate * area;
-    
-    habiteRate = feeByRange(
-      payload.cidade === "BOA_VISTA" ? t["HabiteSe_BV_Faixas_Area"] : null,
-      area
-    );
+
+    habiteRate = feeByRange(t["HabiteSe_BV_Faixas_Area"], area);
     habite = habiteRate * area;
+  } else {
+    // OUTRO (se tiver tabela depois você liga)
+    alvaraRate = 0; alvara = 0;
+    habiteRate = 0; habite = 0;
   }
-  
-  // CNO somente se >70m²
+
+  // CNO > 70m²
   let cno = 0;
   if(area > 70){
     const cnoPerc = num(config.CNO_PERC);
     const cnoFixo = num(config.CNO_FIXO);
-    // por padrão usamos % sobre o financiado, mas em PROPRIO pode ser sobre total (se preferir, me diga)
     const baseCno = isProprio ? totalTerrenoConstrucao : valorFinBase;
     cno = cnoPerc > 0 ? (baseCno * cnoPerc) : cnoFixo;
   }
 
-  // Averbação por faixa pelo valor da obra
+  // Averbação faixa pelo valor da obra
   const averbacao = amountByRangeFlat(t["Registro_Averbacao_Faixas_Valor"], valorObra);
 
   // Calçada
   const calcadaPrecoML = num(config.CALCADA_PRECO_METRO_LINEAR);
   let calcada = 0;
   if(payload.cidade === "BOA_VISTA" && payload.possui_calcada === "NAO"){
-    const ml = num(payload.calcada_metros_lineares);
-    calcada = ml * calcadaPrecoML;
+    calcada = num(payload.calcada_metros_lineares) * calcadaPrecoML;
   }
 
-  // Itens bancários (zerados em PROPRIO)
+  // Bancários (zerados em PROPRIO)
   const vistoria = isProprio ? 0 : num(config.VISTORIA_CAIXA_FIXO);
 
   const taxaFinPerc = isProprio ? 0 : ((payload.tipo_financiamento === "MCMV") ? num(config.TAXA_FIN_MCMV) : num(config.TAXA_FIN_OUTROS));
   const taxaFinR = isProprio ? 0 : (valorFinBase * taxaFinPerc);
 
-  // ITBI (só se terreno está sendo adquirido e não é PROPRIO)
-  let itbi = 0;
-  let itbiIsentoBV = false;
-  let itbiPercAplicada = 0;
-
+  // ITBI (só quando compra terreno e não é próprio)
+  let itbi = 0, itbiIsentoBV = false, itbiPercAplicada = 0;
   if(!isProprio && !terrenoProprio && operacaoTerrenoConstrucao){
     if(payload.cidade === "BOA_VISTA"){
       const limiteSM = num(config.LIMITE_ISENCAO_SM);
@@ -350,7 +322,8 @@ function calcTotal(payload, config){
       const renda = num(payload.renda_bruta_familiar);
       const isento = renda > 0 && renda <= (limiteSM * salarioMin);
       if(isento){
-        itbi = 0; itbiIsentoBV = true;
+        itbiIsentoBV = true;
+        itbi = 0;
       } else {
         itbiPercAplicada = num(config.ITBI_BV_TAXA);
         itbi = valorTerrenoCalc * itbiPercAplicada;
@@ -361,7 +334,7 @@ function calcTotal(payload, config){
     }
   }
 
-  // Registro alienação (só banco)
+  // Registro de alienação (só banco)
   const regAlienacao = isProprio ? 0 : amountByRangeFlat(t["Registro_Alienacao_Faixas_Valor"], valorFinBase);
 
   // TAO (só banco)
@@ -371,46 +344,40 @@ function calcTotal(payload, config){
 
   // datas
   const dataSim = payload.data_simulacao || todayISO();
-  const validadeDias = num(payload.validade_dias) || num(config.VALIDADE_PADRAO_DIAS) || num(config.validade_proposta_dias) || 7;
+  const validadeDias = num(payload.validade_dias) || num(config.VALIDADE_PADRAO_DIAS) || 7;
   const dataVal = addDaysISO(dataSim, validadeDias);
 
-  // custas previstas (sem incluir construção/terreno)
+  // custas previstas (sem obra/terreno)
   const custasPrevistas = (
     projetoValor +
-    crea + alvara +
+    crea +
+    // alvará/habite sempre entram (se estiverem configurados)
+    alvara +
     vistoria + taxaFinR + itbi + regAlienacao + tao +
     calcada + habite + cno + averbacao
   );
 
-  // total geral
   const totalGeral = totalTerrenoConstrucao + custasPrevistas;
 
   return {
-    // modo
     isProprio,
 
-    // infos
     area,
     padraoInfo: pInfo,
 
-    // base
-    valorM2: pInfo.m2,
     custoBase,
     temLaje,
     lajeAd,
     laje,
 
-    // projeto
     projetoTipo,
     projetoRateM2,
     projetoValor,
 
-    // valores
     valorObra,
     valorTerrenoCalc,
     totalTerrenoConstrucao,
 
-    // composição
     entrada,
     subsidio,
     porFora,
@@ -418,45 +385,42 @@ function calcTotal(payload, config){
     saldoNegociar,
     valorFinBase,
 
-    // itens/tabelas
     crea,
+
     alvaraRate,
     alvara,
+    canta_autent,
+    canta_execucao,
+    canta_legalizacao,
+
     habiteRate,
     habite,
-    cno,
-    averbacao,
 
-    // bancários (zerados em PROPRIO)
     vistoria,
     taxaFinPerc,
     taxaFinR,
+
     itbi,
     itbiIsentoBV,
     itbiPercAplicada,
+
     regAlienacao,
+
     taoPerc,
     taoFixo,
     tao,
 
-    // calçada
     calcadaPrecoML,
     calcada,
 
-    // datas
+    cno,
+    averbacao,
+
     dataSim,
     dataVal,
     validadeDias,
-    
-    canta_autent: (payload.cidade === "CANTA") ? canta_autent : 0,
-    canta_execucao: (payload.cidade === "CANTA") ? canta_execucao : 0,
-    canta_legalizacao: (payload.cidade === "CANTA") ? canta_legalizacao : 0,
-    
-    // totalizadores
+
     custasPrevistas,
     totalGeral
   };
 }
-
-
-
