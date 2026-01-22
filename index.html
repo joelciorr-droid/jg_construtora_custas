@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>JG | Simulador de Construção</title>
+  <title>JG | Simulador</title>
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
@@ -23,7 +23,7 @@
   </div>
 
   <div class="card no-print" id="loginCard">
-    <h1>JG | Proposta de Construção</h1>
+    <h1>JG | Proposta</h1>
     <div class="muted">Acesso exclusivo para corretores autorizados</div>
     <div class="hr"></div>
 
@@ -99,7 +99,7 @@
           <div class="muted" style="font-size:12px;margin-top:6px">Se vazio, usa o padrão da configuração.</div>
         </div>
         <div>
-          <label>Tipo de operação</label>
+          <label>Tipo (Banco / Próprio)</label>
           <select id="tipo_financiamento">
             <option value="MCMV">Minha Casa Minha Vida</option>
             <option value="OUTROS">SBPE / Outros</option>
@@ -110,6 +110,13 @@
 
       <div class="row row-3" style="margin-top:10px">
         <div>
+          <label>Tipo de simulação</label>
+          <select id="tipo_simulacao">
+            <option value="CONSTRUCAO" selected>Construção</option>
+            <option value="VENDA">Venda de imóvel (novo/usado)</option>
+          </select>
+        </div>
+        <div>
           <label>Cidade</label>
           <select id="cidade">
             <option value="BOA_VISTA">Boa Vista</option>
@@ -117,72 +124,127 @@
             <option value="OUTRO">Outro</option>
           </select>
         </div>
-        <div>
-          <label>Operação</label>
-          <select id="operacao">
-            <option value="TERRENO_E_CONSTRUCAO" selected>Terreno + Construção</option>
-            <option value="CONSTRUCAO_APENAS">Construção apenas</option>
-          </select>
-        </div>
-        <div>
-          <label>Terreno próprio?</label>
-          <select id="terreno_proprio">
+        <div id="wrap_primeiro_imovel" style="display:none">
+          <label>Primeiro imóvel? (Boa Vista)</label>
+          <select id="primeiro_imovel">
             <option value="SIM">Sim</option>
             <option value="NAO" selected>Não</option>
           </select>
         </div>
       </div>
 
-      <div class="row row-2" style="margin-top:10px">
-        <div id="wrap_valor_terreno">
-          <label>Valor do terreno (R$)</label>
-          <input id="valor_terreno" />
-        </div>
-        <div id="wrap_renda">
-          <label>Renda bruta familiar (R$) (para ITBI Boa Vista)</label>
+      <div class="row row-2" style="margin-top:10px" id="wrap_renda">
+        <div>
+          <label>Renda bruta familiar (R$)</label>
           <input id="renda_bruta_familiar" />
         </div>
-      </div>
-
-      <div class="hr"></div>
-
-      <h2>Dados da Obra</h2>
-
-      <div class="row row-3">
-        <div>
-          <label>Área construída (m²)</label>
-          <input id="area_m2" />
-        </div>
-        <div>
-          <label>Padrão</label>
-          <select id="padrao">
-            <option value="C">Tipo C</option>
-            <option value="B">Tipo B</option>
-            <option value="A" selected>Tipo A</option>
-          </select>
-        </div>
-        <div>
-          <label>Laje</label>
-          <select id="laje">
-            <option value="NAO" selected>Não</option>
-            <option value="SIM">Sim</option>
-          </select>
-          <div class="muted" style="font-size:12px;margin-top:6px">Sem laje: projeto sem estrutural. Com laje: projeto com estrutural.</div>
-        </div>
-      </div>
-
-      <div class="row row-1" style="margin-top:10px" id="wrap_valor_financiado">
-        <div>
-          <label>Valor financiado (opcional)</label>
-          <input id="valor_financiado" placeholder="Se preencher Entrada/Subsídio/Por fora, pode deixar em branco"/>
+        <div class="muted" style="font-size:12px;align-self:end">
+          Usado para ITBI/isenção em Boa Vista conforme regra configurada.
         </div>
       </div>
 
       <div class="hr"></div>
+
+      <!-- VENDA IMÓVEL -->
+      <div id="secVenda" style="display:none">
+        <h2>Dados do Imóvel (Venda)</h2>
+
+        <div class="row row-2" style="margin-top:10px">
+          <div>
+            <label>Imóvel</label>
+            <select id="tipo_imovel">
+              <option value="NOVO" selected>Casa nova</option>
+              <option value="USADO">Casa usada</option>
+            </select>
+          </div>
+          <div>
+            <label>Valor total do imóvel (R$)</label>
+            <input id="valor_imovel" placeholder="Ex: 450.000"/>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+      </div>
+
+      <!-- CONSTRUÇÃO -->
+      <div id="secConstrucao">
+        <h2>Dados da Obra (Construção)</h2>
+
+        <div class="row row-3">
+          <div>
+            <label>Operação</label>
+            <select id="operacao">
+              <option value="TERRENO_E_CONSTRUCAO" selected>Terreno + Construção</option>
+              <option value="CONSTRUCAO_APENAS">Construção apenas</option>
+            </select>
+          </div>
+          <div>
+            <label>Terreno próprio?</label>
+            <select id="terreno_proprio">
+              <option value="SIM">Sim</option>
+              <option value="NAO" selected>Não</option>
+            </select>
+          </div>
+          <div id="wrap_valor_terreno">
+            <label>Valor do terreno (R$)</label>
+            <input id="valor_terreno" />
+          </div>
+        </div>
+
+        <div class="row row-3" style="margin-top:10px">
+          <div>
+            <label>Área construída (m²)</label>
+            <input id="area_m2" />
+          </div>
+          <div>
+            <label>Padrão</label>
+            <select id="padrao">
+              <option value="C">Tipo C</option>
+              <option value="B">Tipo B</option>
+              <option value="A" selected>Tipo A</option>
+            </select>
+          </div>
+          <div>
+            <label>Laje</label>
+            <select id="laje">
+              <option value="NAO" selected>Não</option>
+              <option value="SIM">Sim</option>
+            </select>
+            <div class="muted" style="font-size:12px;margin-top:6px">Sem laje: projeto sem estrutural. Com laje: projeto com estrutural.</div>
+          </div>
+        </div>
+
+        <div class="row row-1" style="margin-top:10px" id="wrap_valor_financiado">
+          <div>
+            <label>Valor financiado (opcional)</label>
+            <input id="valor_financiado" placeholder="Se preencher Entrada/Subsídio/Por fora, pode deixar em branco"/>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <h2>Calçada (Boa Vista)</h2>
+
+        <div class="row row-2" style="margin-top:10px">
+          <div>
+            <label>Possui calçada?</label>
+            <select id="possui_calcada">
+              <option value="SIM" selected>Sim</option>
+              <option value="NAO">Não</option>
+            </select>
+          </div>
+          <div id="wrap_calcada_ml">
+            <label>Metragem linear total (m)</label>
+            <input id="calcada_metros_lineares" placeholder="Ex: 10 (frente) ou 35 (esquina total)"/>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+      </div>
 
       <h2>Composição (simulação / negociação)</h2>
       <div class="muted" style="margin-top:-6px;font-size:12px">
-        <span id="help_composicao">Regra: Financiamento = Total (Terreno + Construção) − Entrada − Subsídio − Por fora.</span>
+        <span id="help_composicao">Regra: Financiamento = Total − Entrada − Subsídio − Por fora.</span>
       </div>
 
       <div class="row row-3" style="margin-top:10px">
@@ -199,24 +261,6 @@
         <div id="wrap_porfora">
           <label>Valor por fora (R$)</label>
           <input id="valor_por_fora" placeholder="Ex: 10.000"/>
-        </div>
-      </div>
-
-      <div class="hr"></div>
-
-      <h2>Calçada (Boa Vista)</h2>
-
-      <div class="row row-2" style="margin-top:10px">
-        <div>
-          <label>Possui calçada?</label>
-          <select id="possui_calcada">
-            <option value="SIM" selected>Sim</option>
-            <option value="NAO">Não</option>
-          </select>
-        </div>
-        <div id="wrap_calcada_ml">
-          <label>Metragem linear total (m)</label>
-          <input id="calcada_metros_lineares" placeholder="Ex: 10 (frente) ou 35 (esquina total)"/>
         </div>
       </div>
 
@@ -263,12 +307,15 @@
           <b>Contato:</b> <span id="b_tel">—</span>
         </div>
 
-        <div style="margin-top:14px;display:flex;justify-content:space-between;gap:12px">
+        <!-- MAIS ESPAÇO PARA ASSINATURA (4 linhas úteis) -->
+        <div style="margin-top:18px;display:flex;justify-content:space-between;gap:18px">
           <div style="text-align:center;flex:1">
+            <div style="height:80px"></div>
             ___________________________________<br/>
             <b id="b_assinatura">Assinatura do Corretor</b>
           </div>
           <div style="text-align:center;flex:1">
+            <div style="height:80px"></div>
             ___________________________________<br/>
             <b id="c_assinatura_nome">—</b><br/>
             <span id="c_assinatura_cargo">—</span>
@@ -310,24 +357,28 @@ function refreshMenu(){
   $('who').textContent = token ? (user.name+' ('+user.role+')') : '';
 }
 
-function toggleTerrenoUI(){
-  const op = $('operacao').value;
-  const tp = $('terreno_proprio').value;
-  const tf = $('tipo_financiamento').value;
+function setDefaults(){
+  $('data_simulacao').value = todayISO();
+}
 
-  if(tf === 'PROPRIO'){
-    $('wrap_valor_terreno').style.display = 'none';
-    $('wrap_renda').style.display = 'none';
-    $('valor_terreno').value = '0';
-    $('renda_bruta_familiar').value = '';
-    return;
+function toggleTipoFinUI(){
+  const tf = $('tipo_financiamento').value;
+  const isProprio = (tf === 'PROPRIO');
+
+  if(isProprio){
+    $('wrap_subsidio').style.display = 'none';
+    $('wrap_porfora').style.display = 'none';
+    $('subsidio').value = '0';
+    $('valor_por_fora').value = '0';
+
+    $('help_composicao').textContent = 'Recursos próprios: Saldo = Total − Entrada.';
+  } else {
+    $('wrap_subsidio').style.display = 'block';
+    $('wrap_porfora').style.display = 'block';
+    $('help_composicao').textContent = 'Regra: Financiamento = Total − Entrada − Subsídio − Por fora.';
   }
 
-  const show = (op === 'TERRENO_E_CONSTRUCAO' && tp !== 'SIM');
-  $('wrap_valor_terreno').style.display = show ? 'block' : 'none';
-  if(!show) $('valor_terreno').value = '0';
-
-  $('wrap_renda').style.display = 'block';
+  toggleSimulacaoUI();
 }
 
 function toggleCalcadaUI(){
@@ -338,37 +389,65 @@ function toggleCalcadaUI(){
   if(!show) $('calcada_metros_lineares').value = '';
 }
 
-function toggleTipoFinUI(){
+function toggleTerrenoUI(){
+  const op = $('operacao').value;
+  const tp = $('terreno_proprio').value;
   const tf = $('tipo_financiamento').value;
-  const isProprio = (tf === 'PROPRIO');
 
-  if(isProprio){
+  if(tf === 'PROPRIO'){
+    $('wrap_valor_terreno').style.display = 'none';
+    $('valor_terreno').value = '0';
+    return;
+  }
+
+  const show = (op === 'TERRENO_E_CONSTRUCAO' && tp !== 'SIM');
+  $('wrap_valor_terreno').style.display = show ? 'block' : 'none';
+  if(!show) $('valor_terreno').value = '0';
+}
+
+function toggleSimulacaoUI(){
+  const tipoSim = $('tipo_simulacao').value;
+
+  if(tipoSim === 'VENDA'){
+    // mostra venda / oculta construção
+    $('secVenda').style.display = 'block';
+    $('secConstrucao').style.display = 'none';
+
+    // campos de construção zerados
     $('operacao').value = 'CONSTRUCAO_APENAS';
     $('terreno_proprio').value = 'SIM';
     $('valor_terreno').value = '0';
-    $('renda_bruta_familiar').value = '';
+    $('area_m2').value = '';
+    $('valor_financiado').value = '';
+    $('possui_calcada').value = 'SIM';
+    $('calcada_metros_lineares').value = '';
 
-    $('wrap_subsidio').style.display = 'none';
-    $('wrap_porfora').style.display = 'none';
+    // esconder opções que não se aplicam
     $('wrap_valor_financiado').style.display = 'none';
 
-    $('subsidio').value = '0';
-    $('valor_por_fora').value = '0';
-    $('valor_financiado').value = '';
+    // venda: primeiro imóvel aparece (boa vista) e renda sempre mantém
+    $('wrap_primeiro_imovel').style.display = ($('cidade').value === 'BOA_VISTA') ? 'block' : 'none';
 
-    $('help_composicao').textContent = 'Recursos próprios: Saldo = Total (Construção) − Entrada.';
-  }else{
-    $('wrap_subsidio').style.display = 'block';
-    $('wrap_porfora').style.display = 'block';
-    $('wrap_valor_financiado').style.display = 'block';
-    $('help_composicao').textContent = 'Regra: Financiamento = Total (Terreno + Construção) − Entrada − Subsídio − Por fora.';
+  } else {
+    // construção
+    $('secVenda').style.display = 'none';
+    $('secConstrucao').style.display = 'block';
+    $('wrap_valor_financiado').style.display = '';
+
+    $('wrap_primeiro_imovel').style.display = 'none';
+    $('primeiro_imovel').value = 'NAO';
+
+    toggleTerrenoUI();
+    toggleCalcadaUI();
   }
 
-  toggleTerrenoUI();
-}
-
-function setDefaults(){
-  $('data_simulacao').value = todayISO();
+  // regra do PROPRIO para construção: some valor financiado opcional
+  if($('tipo_financiamento').value === 'PROPRIO'){
+    $('wrap_valor_financiado').style.display = 'none';
+    $('valor_financiado').value = '';
+  } else {
+    if(tipoSim === 'CONSTRUCAO') $('wrap_valor_financiado').style.display = '';
+  }
 }
 
 function renderCompanyBroker(){
@@ -396,25 +475,41 @@ function readPayload(){
     lead_id = uuid();
     $('cliente_telefone').dataset.leadId = lead_id;
   }
+
   return {
     lead_id,
     cliente_nome: $('cliente_nome').value,
     cliente_telefone: $('cliente_telefone').value,
+
     data_simulacao: $('data_simulacao').value,
     validade_dias: $('validade_dias').value,
+
     tipo_financiamento: $('tipo_financiamento').value,
+    tipo_simulacao: $('tipo_simulacao').value,
+
     cidade: $('cidade').value,
+    renda_bruta_familiar: $('renda_bruta_familiar').value,
+    primeiro_imovel: $('primeiro_imovel').value,
+
+    // VENDA
+    tipo_imovel: $('tipo_imovel').value,
+    valor_imovel: $('valor_imovel').value,
+
+    // CONSTRUÇÃO
     operacao: $('operacao').value,
     terreno_proprio: $('terreno_proprio').value,
     valor_terreno: $('valor_terreno').value,
-    renda_bruta_familiar: $('renda_bruta_familiar').value,
+
     area_m2: $('area_m2').value,
     padrao: $('padrao').value,
     laje: $('laje').value,
+
     valor_financiado: $('valor_financiado').value,
+
     entrada: $('entrada').value,
     subsidio: $('subsidio').value,
     valor_por_fora: $('valor_por_fora').value,
+
     possui_calcada: $('possui_calcada').value,
     calcada_metros_lineares: $('calcada_metros_lineares').value
   };
@@ -422,6 +517,8 @@ function readPayload(){
 
 function renderReport(payload, calc){
   const isProprio = (payload.tipo_financiamento === 'PROPRIO');
+  const isVenda = (payload.tipo_simulacao === 'VENDA');
+
   const validadeDate = calc.dataVal ? formatDateBR(calc.dataVal) : '—';
 
   $('resHeader').innerHTML = `
@@ -430,17 +527,82 @@ function renderReport(payload, calc){
       <b>Data da simulação:</b> ${formatDateBR(calc.dataSim)} |
       <b>Validade até:</b> ${validadeDate}<br/>
       <b>Cidade:</b> ${payload.cidade} |
-      <b>Operação:</b> ${payload.tipo_financiamento} |
-      <b>Área:</b> ${payload.area_m2 || '—'} m² |
-      <b>Padrão:</b> ${payload.padrao} |
-      <b>Terreno próprio:</b> ${payload.terreno_proprio}
+      <b>Tipo:</b> ${payload.tipo_simulacao} |
+      <b>Operação:</b> ${payload.tipo_financiamento}
+      ${isVenda ? ` | <b>Imóvel:</b> ${payload.tipo_imovel}` : ``}
     </div>
   `;
 
   const boxStyle = "padding:10px;border:1px solid #ddd;border-radius:12px;margin:10px 0;";
   const strongStyle = "font-size:15px;font-weight:700;";
 
-  const terrenoEntra = (!isProprio && payload.terreno_proprio !== 'SIM' && payload.operacao === 'TERRENO_E_CONSTRUCAO');
+  // VENDA
+  if(isVenda){
+    const valorImovel = num(payload.valor_imovel);
+
+    const finBox = isProprio
+      ? `
+        <div style="${boxStyle}">
+          <div style="${strongStyle}">Composição (Recursos próprios)</div>
+          <div><b>Valor do imóvel:</b> ${formatBRL(valorImovel)}</div>
+          <div><b>Entrada:</b> ${formatBRL(calc.entrada)}</div>
+          <div style="margin-top:8px"><b>Saldo a negociar:</b> ${formatBRL(calc.saldoNegociar || 0)}</div>
+        </div>
+      `
+      : `
+        <div style="${boxStyle}">
+          <div style="${strongStyle}">Composição do Financiamento</div>
+          <div><b>Valor do imóvel:</b> ${formatBRL(valorImovel)}</div>
+          <div><b>Entrada:</b> ${formatBRL(calc.entrada)}</div>
+          <div><b>Subsídio:</b> ${formatBRL(calc.subsidio)}</div>
+          <div><b>Valor por fora:</b> ${formatBRL(calc.porFora)}</div>
+          <div style="margin-top:8px"><b>Valor a financiar (calculado):</b> ${formatBRL(calc.valorAFinanciar)}</div>
+          <div class="muted" style="font-size:12px;margin-top:6px">Fórmula: Valor do imóvel − Entrada − Subsídio − Por fora</div>
+        </div>
+      `;
+
+    const taxaExpl = `${formatPct(calc.taxaFinPerc)} × ${formatBRL(calc.valorFinBase)} = ${formatBRL(calc.taxaFinR)}`;
+
+    let itbiExpl = '—';
+    if(calc.itbi === 0){
+      if(payload.cidade === 'BOA_VISTA' && calc.itbiIsentoBV){
+        itbiExpl = `Isento em Boa Vista (primeiro imóvel) por atender ao limite de ${num(CONFIG.LIMITE_ISENCAO_SM)} salários mínimos (renda informada).`;
+      } else {
+        itbiExpl = `ITBI zerado / não aplicável conforme regras.`;
+      }
+    } else {
+      itbiExpl = `${formatPct(calc.itbiPercAplicada)} × ${formatBRL(valorImovel)} = ${formatBRL(calc.itbi)}`;
+    }
+
+    const custos = `
+      <table class="table">
+        ${!isProprio ? `
+          <tr><td><b>Vistoria Caixa</b></td><td style="text-align:right"><b>${formatBRL(calc.vistoria)}</b></td></tr>
+          <tr>
+            <td><b>Taxa de financiamento</b><div class="muted" style="font-size:11px">${taxaExpl}</div></td>
+            <td style="text-align:right"><b>${formatBRL(calc.taxaFinR)}</b></td>
+          </tr>
+        ` : ``}
+
+        <tr>
+          <td><b>ITBI (imóvel)</b><div class="muted" style="font-size:11px">${itbiExpl}</div></td>
+          <td style="text-align:right"><b>${formatBRL(calc.itbi)}</b></td>
+        </tr>
+
+        ${!isProprio ? `
+          <tr><td><b>Registro de Alienação</b></td><td style="text-align:right"><b>${formatBRL(calc.regAlienacao)}</b></td></tr>
+        ` : ``}
+      </table>
+    `;
+
+    $('resBody').innerHTML = `${finBox}${custos}`;
+    $('resCustas').textContent = formatBRL(calc.custasPrevistas);
+    $('resTotal').textContent = formatBRL(calc.totalGeral);
+    return;
+  }
+
+  // CONSTRUÇÃO (mantém o comportamento anterior)
+  const terrenoEntra = (payload.tipo_financiamento !== 'PROPRIO' && payload.terreno_proprio !== 'SIM' && payload.operacao === 'TERRENO_E_CONSTRUCAO');
 
   const pad = calc.padraoInfo;
   const padBox = `
@@ -485,7 +647,6 @@ function renderReport(payload, calc){
   const projetoLabel = (calc.projetoTipo === 'COM_ESTRUTURAL') ? 'Projeto (com estrutural)' : 'Projeto (sem estrutural)';
   const projetoExpl = `${formatBRL(calc.projetoRateM2)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.projetoValor)}`;
 
-  // Alvará/Habite-se explicações (Cantá composto)
   let alvaraExpl = `${formatBRL(calc.alvaraRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.alvara)}`;
   let habiteExpl = `${formatBRL(calc.habiteRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.habite)}`;
 
@@ -495,11 +656,22 @@ function renderReport(payload, calc){
       `Execução: ${formatBRL(calc.alvaraRate)} × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.canta_execucao)} | ` +
       `Legalização: 50% da Execução = ${formatBRL(calc.canta_legalizacao)} | ` +
       `Total: ${formatBRL(calc.alvara)}`;
-
-    habiteExpl = `${formatBRL(calc.habiteRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.habite)}`;
   }
 
   const taxaExpl = `${formatPct(calc.taxaFinPerc)} × ${formatBRL(calc.valorFinBase)} = ${formatBRL(calc.taxaFinR)}`;
+
+  const rowAlvara = `
+    <tr>
+      <td><b>Alvará de Construção</b><div class="muted" style="font-size:11px">${alvaraExpl}</div></td>
+      <td style="text-align:right"><b>${formatBRL(calc.alvara)}</b></td>
+    </tr>
+  `;
+  const rowHabite = `
+    <tr>
+      <td><b>Habite-se</b><div class="muted" style="font-size:11px">${habiteExpl}</div></td>
+      <td style="text-align:right"><b>${formatBRL(calc.habite)}</b></td>
+    </tr>
+  `;
 
   let itbiExpl = '—';
   if(calc.itbi === 0){
@@ -526,25 +698,8 @@ function renderReport(payload, calc){
   const showLaje = calc.temLaje && calc.laje > 0;
   const showCno = (calc.area > 70 && calc.cno > 0);
 
-  // ===== ORDEM DO ALVARÁ:
-  // - BOA_VISTA: após CREA
-  // - CANTA: após Alienação (se existir); em PROPRIO (sem alienação) após CREA
   const isCanta = (payload.cidade === "CANTA");
   const isBV = (payload.cidade === "BOA_VISTA");
-
-  const rowAlvara = `
-    <tr>
-      <td><b>Alvará de Construção</b><div class="muted" style="font-size:11px">${alvaraExpl}</div></td>
-      <td style="text-align:right"><b>${formatBRL(calc.alvara)}</b></td>
-    </tr>
-  `;
-
-  const rowHabite = `
-    <tr>
-      <td><b>Habite-se</b><div class="muted" style="font-size:11px">${habiteExpl}</div></td>
-      <td style="text-align:right"><b>${formatBRL(calc.habite)}</b></td>
-    </tr>
-  `;
 
   const custos = `
     <table class="table">
@@ -562,7 +717,7 @@ function renderReport(payload, calc){
         <td style="text-align:right"><b>${formatBRL(calc.crea || 0)}</b></td>
       </tr>
 
-      ${isBV ? rowAlvara : (isCanta && isProprio ? rowAlvara : ``)}
+      ${isBV ? `${rowAlvara}${rowHabite}` : ``}
 
       ${!isProprio ? `
         <tr><td><b>Vistoria Caixa</b></td><td style="text-align:right"><b>${formatBRL(calc.vistoria)}</b></td></tr>
@@ -579,7 +734,7 @@ function renderReport(payload, calc){
 
         <tr><td><b>Registro de Alienação</b></td><td style="text-align:right"><b>${formatBRL(calc.regAlienacao)}</b></td></tr>
 
-        ${isCanta ? rowAlvara : ``}
+        ${isCanta ? `${rowAlvara}${rowHabite}` : ``}
 
         <tr>
           <td><b>TAO</b><div class="muted" style="font-size:11px">${taoExpl}</div></td>
@@ -592,7 +747,7 @@ function renderReport(payload, calc){
         <td style="text-align:right"><b>${formatBRL(calc.calcada)}</b></td>
       </tr>
 
-      ${rowHabite}
+      ${!isCanta ? rowHabite : ``}
 
       ${showCno ? `<tr><td><b>CNO (Receita Federal)</b></td><td style="text-align:right"><b>${formatBRL(calc.cno)}</b></td></tr>` : ``}
 
@@ -722,15 +877,17 @@ $('btnSalvar').onclick = async ()=>{
 $('btnPDF').onclick = ()=> window.print();
 
 // binds
+$('tipo_financiamento').onchange = toggleTipoFinUI;
+$('tipo_simulacao').onchange = toggleSimulacaoUI;
+$('cidade').onchange = ()=>{ toggleCalcadaUI(); toggleSimulacaoUI(); };
 $('operacao').onchange = toggleTerrenoUI;
 $('terreno_proprio').onchange = toggleTerrenoUI;
-$('cidade').onchange = toggleCalcadaUI;
 $('possui_calcada').onchange = toggleCalcadaUI;
-$('tipo_financiamento').onchange = toggleTipoFinUI;
 
 setDefaults();
 refreshMenu();
 toggleTipoFinUI();
+toggleSimulacaoUI();
 toggleCalcadaUI();
 
 async function boot(){
@@ -743,6 +900,7 @@ async function boot(){
         return;
       }
       await loadAfterLogin(token);
+
       const toLoad = getLeadToLoad();
       if(toLoad){
         fillFormFromLead(toLoad);
@@ -756,14 +914,11 @@ async function boot(){
 }
 boot();
 
-// helper (pra não quebrar caso venha do CRM depois)
+// ===== carregar do CRM para o formulário =====
 function fillFormFromLead(lead){
   if(!lead) return;
-
-  // Pode vir como {payload:{...}} ou já direto
   const p = lead.payload || lead;
 
-  // helper
   const setVal = (id, val) => {
     const el = document.getElementById(id);
     if(!el) return;
@@ -776,59 +931,52 @@ function fillFormFromLead(lead){
     el.value = String(val);
   };
 
-  // ID do lead (pra manter histórico)
   const leadId = p.lead_id || p.leadId || p.id || "";
   if(leadId){
     const telEl = document.getElementById("cliente_telefone");
     if(telEl) telEl.dataset.leadId = leadId;
   }
 
-  // Campos básicos
   setVal("cliente_nome", p.cliente_nome);
   setVal("cliente_telefone", p.cliente_telefone);
   setVal("data_simulacao", p.data_simulacao || todayISO());
   setVal("validade_dias", p.validade_dias);
 
-  // Seleções principais (importante setar antes dos toggles)
   setSel("tipo_financiamento", p.tipo_financiamento);
+  setSel("tipo_simulacao", p.tipo_simulacao || "CONSTRUCAO");
+
   setSel("cidade", p.cidade);
+  setVal("renda_bruta_familiar", p.renda_bruta_familiar);
+  setSel("primeiro_imovel", p.primeiro_imovel || "NAO");
+
+  // venda
+  setSel("tipo_imovel", p.tipo_imovel || "NOVO");
+  setVal("valor_imovel", p.valor_imovel);
+
+  // construção
   setSel("operacao", p.operacao);
   setSel("terreno_proprio", p.terreno_proprio);
-
-  // Agora aplica regras de UI
-  toggleTipoFinUI();
-  toggleTerrenoUI();
-  toggleCalcadaUI();
-
-  // Campos que podem ser ocultados pela UI (preenche mesmo assim)
   setVal("valor_terreno", p.valor_terreno);
-  setVal("renda_bruta_familiar", p.renda_bruta_familiar);
 
-  // Obra
   setVal("area_m2", p.area_m2);
   setSel("padrao", p.padrao);
   setSel("laje", p.laje);
 
-  // Banco / composição
   setVal("valor_financiado", p.valor_financiado);
-  setVal("entrada", p.entrada);
 
-  // Esses dois somem em PROPRIO, mas pode preencher (não atrapalha)
+  setVal("entrada", p.entrada);
   setVal("subsidio", p.subsidio);
   setVal("valor_por_fora", p.valor_por_fora);
 
-  // Calçada
   setSel("possui_calcada", p.possui_calcada || "SIM");
-  toggleCalcadaUI();
   setVal("calcada_metros_lineares", p.calcada_metros_lineares);
 
-  // Depois de preencher, recalcula a UI novamente
+  // aplicar UI
   toggleTipoFinUI();
+  toggleSimulacaoUI();
   toggleTerrenoUI();
   toggleCalcadaUI();
 }
-
 </script>
 </body>
 </html>
-
