@@ -18,7 +18,7 @@ function num(v){
   if (!s) return 0;
 
   s = s.replace(/\s/g, "");
-  s = s.replace(/[^\d.,-]/g, ""); // limpa letras e símbolos
+  s = s.replace(/[^\d.,-]/g, "");
 
   const hasComma = s.includes(",");
   const hasDot = s.includes(".");
@@ -212,25 +212,31 @@ function calcTotal(payload, config){
   const isProprio = (payload.tipo_financiamento === "PROPRIO");
 
   // -------------------------
-  // VENDA DE IMÓVEL (NOVO/USADO)
+  // VENDA DE IMÓVEL (NOVO/USADO) - FIX
   // -------------------------
   if(isVenda){
     const valorImovel = num(payload.valor_imovel);
     const entrada = num(payload.entrada);
-    const subsidio = isProprio ? 0 : num(payload.subsidio);
-    const porFora = isProprio ? 0 : num(payload.valor_por_fora);
 
+    const subsidio = isProprio ? 0 : num(payload.subsidio);
+    const porFora  = isProprio ? 0 : num(payload.valor_por_fora);
+
+    // VALOR A FINANCIAR (sempre calculado)
     let valorAFinanciar = valorImovel - entrada - subsidio - porFora;
     if(valorAFinanciar < 0) valorAFinanciar = 0;
 
+    // Recursos próprios: saldo a negociar = valorImovel - entrada
     const saldoNegociar = isProprio ? Math.max(0, valorImovel - entrada) : 0;
 
-    const valorFinInput = num(payload.valor_financiado);
-    const valorFinBase = (!isProprio && valorAFinanciar > 0) ? valorAFinanciar : valorFinInput;
+    // Base de cálculo bancária = valorAFinanciar (quando banco)
+    const valorFinBase = (!isProprio) ? valorAFinanciar : 0;
 
     // Bancários (somente quando há banco)
     const vistoria = isProprio ? 0 : num(config.VISTORIA_CAIXA_FIXO);
-    const taxaFinPerc = isProprio ? 0 : ((payload.tipo_financiamento === "MCMV") ? num(config.TAXA_FIN_MCMV) : num(config.TAXA_FIN_OUTROS));
+
+    const taxaFinPerc = isProprio ? 0
+      : ((payload.tipo_financiamento === "MCMV") ? num(config.TAXA_FIN_MCMV) : num(config.TAXA_FIN_OUTROS));
+
     const taxaFinR = isProprio ? 0 : (valorFinBase * taxaFinPerc);
 
     // ITBI (imóvel novo/usado)
@@ -262,7 +268,10 @@ function calcTotal(payload, config){
     const validadeDias = num(payload.validade_dias) || num(config.VALIDADE_PADRAO_DIAS) || 7;
     const dataVal = addDaysISO(dataSim, validadeDias);
 
+    // Custas previstas (venda)
     const custasPrevistas = (vistoria + taxaFinR + itbi + regAlienacao);
+
+    // Total geral = valor do imóvel + custas
     const totalGeral = valorImovel + custasPrevistas;
 
     return {
@@ -270,13 +279,9 @@ function calcTotal(payload, config){
       isVenda: true,
       isProprio,
 
-      // valores base
       valorImovel,
-      totalTerrenoConstrucao: valorImovel, // reuso do campo no relatório
-      valorObra: 0,
-      valorTerrenoCalc: 0,
+      totalTerrenoConstrucao: valorImovel,
 
-      // composição
       entrada,
       subsidio,
       porFora,
@@ -284,16 +289,17 @@ function calcTotal(payload, config){
       saldoNegociar,
       valorFinBase,
 
-      // itens
       vistoria,
       taxaFinPerc,
       taxaFinR,
+
       itbi,
       itbiIsentoBV,
       itbiPercAplicada,
+
       regAlienacao,
 
-      // campos não usados na venda (para não quebrar o render)
+      // campos "não usados" para não quebrar render
       area: 0,
       padraoInfo: null,
       custoBase: 0,
@@ -318,13 +324,13 @@ function calcTotal(payload, config){
       taoPerc: 0,
       taoFixo: 0,
       tao: 0,
+      valorObra: 0,
+      valorTerrenoCalc: 0,
 
-      // datas
       dataSim,
       dataVal,
       validadeDias,
 
-      // totais
       custasPrevistas,
       totalGeral
     };
@@ -354,7 +360,7 @@ function calcTotal(payload, config){
   // valor obra
   const valorObra = custoBase + laje;
 
-  // terreno (PROPRIO sempre construção apenas/terreno próprio)
+  // terreno
   const terrenoProprio = (payload.terreno_proprio === "SIM") || isProprio;
   const operacaoTerrenoConstrucao = (!isProprio && payload.operacao === "TERRENO_E_CONSTRUCAO");
   const valorTerrenoCalc = (!terrenoProprio && operacaoTerrenoConstrucao) ? num(payload.valor_terreno) : 0;
@@ -371,8 +377,8 @@ function calcTotal(payload, config){
 
   const saldoNegociar = isProprio ? Math.max(0, totalTerrenoConstrucao - entrada) : 0;
 
-  const valorFinInput = num(payload.valor_financiado);
-  const valorFinBase = (!isProprio && valorAFinanciar > 0) ? valorAFinanciar : valorFinInput;
+  // base financiamento quando banco
+  const valorFinBase = (!isProprio) ? valorAFinanciar : 0;
 
   // CREA
   const creaTable = t["CREA_Faixas_Area"] || t["CREA"] || null;
@@ -399,7 +405,6 @@ function calcTotal(payload, config){
     habite = habiteRate * area;
 
   } else if(payload.cidade === "BOA_VISTA"){
-    // Boa Vista via tabelas por faixa: tarifa/m²
     alvaraRate = feeByRange(t["Alvara_BV_Faixas_Area"], area);
     alvara = alvaraRate * area;
 
@@ -429,10 +434,12 @@ function calcTotal(payload, config){
   // Bancários (zerados em PROPRIO)
   const vistoria = isProprio ? 0 : num(config.VISTORIA_CAIXA_FIXO);
 
-  const taxaFinPerc = isProprio ? 0 : ((payload.tipo_financiamento === "MCMV") ? num(config.TAXA_FIN_MCMV) : num(config.TAXA_FIN_OUTROS));
+  const taxaFinPerc = isProprio ? 0
+    : ((payload.tipo_financiamento === "MCMV") ? num(config.TAXA_FIN_MCMV) : num(config.TAXA_FIN_OUTROS));
+
   const taxaFinR = isProprio ? 0 : (valorFinBase * taxaFinPerc);
 
-  // ITBI (terreno): só quando compra terreno e não é próprio
+  // ITBI (terreno): só quando compra terreno (terreno+construção) e não é próprio
   let itbi = 0, itbiIsentoBV = false, itbiPercAplicada = 0;
   if(!isProprio && !terrenoProprio && operacaoTerrenoConstrucao){
     if(payload.cidade === "BOA_VISTA"){
@@ -466,7 +473,7 @@ function calcTotal(payload, config){
   const validadeDias = num(payload.validade_dias) || num(config.VALIDADE_PADRAO_DIAS) || 7;
   const dataVal = addDaysISO(dataSim, validadeDias);
 
-  // custas previstas (sem obra/terreno)
+  // custas previstas
   const custasPrevistas = (
     projetoValor +
     crea +
