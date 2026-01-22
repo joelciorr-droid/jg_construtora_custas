@@ -203,11 +203,137 @@ function padraoInfo(padrao, config){
 }
 
 // ======================================================
-//  CÁLCULO PRINCIPAL
+//  CÁLCULO PRINCIPAL (CONSTRUÇÃO + VENDA DE IMÓVEL)
 // ======================================================
 function calcTotal(payload, config){
-  const area = num(payload.area_m2);
+  const t = FEE_TABLES || {};
+  const tipoSim = payload.tipo_simulacao || "CONSTRUCAO";
+  const isVenda = (tipoSim === "VENDA");
   const isProprio = (payload.tipo_financiamento === "PROPRIO");
+
+  // -------------------------
+  // VENDA DE IMÓVEL (NOVO/USADO)
+  // -------------------------
+  if(isVenda){
+    const valorImovel = num(payload.valor_imovel);
+    const entrada = num(payload.entrada);
+    const subsidio = isProprio ? 0 : num(payload.subsidio);
+    const porFora = isProprio ? 0 : num(payload.valor_por_fora);
+
+    let valorAFinanciar = valorImovel - entrada - subsidio - porFora;
+    if(valorAFinanciar < 0) valorAFinanciar = 0;
+
+    const saldoNegociar = isProprio ? Math.max(0, valorImovel - entrada) : 0;
+
+    const valorFinInput = num(payload.valor_financiado);
+    const valorFinBase = (!isProprio && valorAFinanciar > 0) ? valorAFinanciar : valorFinInput;
+
+    // Bancários (somente quando há banco)
+    const vistoria = isProprio ? 0 : num(config.VISTORIA_CAIXA_FIXO);
+    const taxaFinPerc = isProprio ? 0 : ((payload.tipo_financiamento === "MCMV") ? num(config.TAXA_FIN_MCMV) : num(config.TAXA_FIN_OUTROS));
+    const taxaFinR = isProprio ? 0 : (valorFinBase * taxaFinPerc);
+
+    // ITBI (imóvel novo/usado)
+    let itbi = 0, itbiIsentoBV = false, itbiPercAplicada = 0;
+    const cidade = payload.cidade;
+    const renda = num(payload.renda_bruta_familiar);
+    const primeiro = (payload.primeiro_imovel === "SIM");
+
+    if(cidade === "BOA_VISTA"){
+      const limiteSM = num(config.LIMITE_ISENCAO_SM);
+      const salarioMin = num(config.SALARIO_MINIMO);
+      const isento = primeiro && renda > 0 && renda <= (limiteSM * salarioMin);
+      if(isento){
+        itbiIsentoBV = true;
+        itbi = 0;
+      } else {
+        itbiPercAplicada = num(config.ITBI_BV_TAXA);
+        itbi = valorImovel * itbiPercAplicada;
+      }
+    } else {
+      itbiPercAplicada = num(config.ITBI_OUTROS_TAXA);
+      itbi = valorImovel * itbiPercAplicada;
+    }
+
+    // Registro alienação (somente banco)
+    const regAlienacao = isProprio ? 0 : amountByRangeFlat(t["Registro_Alienacao_Faixas_Valor"], valorFinBase);
+
+    const dataSim = payload.data_simulacao || todayISO();
+    const validadeDias = num(payload.validade_dias) || num(config.VALIDADE_PADRAO_DIAS) || 7;
+    const dataVal = addDaysISO(dataSim, validadeDias);
+
+    const custasPrevistas = (vistoria + taxaFinR + itbi + regAlienacao);
+    const totalGeral = valorImovel + custasPrevistas;
+
+    return {
+      tipo_simulacao: "VENDA",
+      isVenda: true,
+      isProprio,
+
+      // valores base
+      valorImovel,
+      totalTerrenoConstrucao: valorImovel, // reuso do campo no relatório
+      valorObra: 0,
+      valorTerrenoCalc: 0,
+
+      // composição
+      entrada,
+      subsidio,
+      porFora,
+      valorAFinanciar,
+      saldoNegociar,
+      valorFinBase,
+
+      // itens
+      vistoria,
+      taxaFinPerc,
+      taxaFinR,
+      itbi,
+      itbiIsentoBV,
+      itbiPercAplicada,
+      regAlienacao,
+
+      // campos não usados na venda (para não quebrar o render)
+      area: 0,
+      padraoInfo: null,
+      custoBase: 0,
+      temLaje: false,
+      lajeAd: 0,
+      laje: 0,
+      projetoTipo: "",
+      projetoRateM2: 0,
+      projetoValor: 0,
+      crea: 0,
+      alvaraRate: 0,
+      alvara: 0,
+      canta_autent: 0,
+      canta_execucao: 0,
+      canta_legalizacao: 0,
+      habiteRate: 0,
+      habite: 0,
+      calcadaPrecoML: 0,
+      calcada: 0,
+      cno: 0,
+      averbacao: 0,
+      taoPerc: 0,
+      taoFixo: 0,
+      tao: 0,
+
+      // datas
+      dataSim,
+      dataVal,
+      validadeDias,
+
+      // totais
+      custasPrevistas,
+      totalGeral
+    };
+  }
+
+  // -------------------------
+  // CONSTRUÇÃO (já existente)
+  // -------------------------
+  const area = num(payload.area_m2);
   const pInfo = padraoInfo(payload.padrao, config);
 
   // base
@@ -248,9 +374,6 @@ function calcTotal(payload, config){
   const valorFinInput = num(payload.valor_financiado);
   const valorFinBase = (!isProprio && valorAFinanciar > 0) ? valorAFinanciar : valorFinInput;
 
-  // tabelas
-  const t = FEE_TABLES || {};
-
   // CREA
   const creaTable = t["CREA_Faixas_Area"] || t["CREA"] || null;
   const crea = amountByRangeFlat(creaTable, area);
@@ -261,8 +384,8 @@ function calcTotal(payload, config){
   let canta_autent = 0, canta_execucao = 0, canta_legalizacao = 0;
 
   if(payload.cidade === "CANTA"){
-    const tarifa = num(config.CANTA_ALVARA_TARIFA);                 // 5.11
-    const qtdAut = num(config.CANTA_ALVARA_AUTENT_QTDE) || 20;      // 20
+    const tarifa = num(config.CANTA_ALVARA_TARIFA);
+    const qtdAut = num(config.CANTA_ALVARA_AUTENT_QTDE) || 20;
     const fatorLeg = num(config.CANTA_ALVARA_LEGALIZACAO_FATOR) || 0.5;
 
     canta_autent = tarifa * qtdAut;
@@ -272,7 +395,7 @@ function calcTotal(payload, config){
     alvaraRate = tarifa;
     alvara = canta_autent + canta_execucao + canta_legalizacao;
 
-    habiteRate = num(config.CANTA_HABITESE_TARIFA) || tarifa;       // 5.11
+    habiteRate = num(config.CANTA_HABITESE_TARIFA) || tarifa;
     habite = habiteRate * area;
 
   } else if(payload.cidade === "BOA_VISTA"){
@@ -282,10 +405,6 @@ function calcTotal(payload, config){
 
     habiteRate = feeByRange(t["HabiteSe_BV_Faixas_Area"], area);
     habite = habiteRate * area;
-  } else {
-    // OUTRO (se tiver tabela depois você liga)
-    alvaraRate = 0; alvara = 0;
-    habiteRate = 0; habite = 0;
   }
 
   // CNO > 70m²
@@ -313,7 +432,7 @@ function calcTotal(payload, config){
   const taxaFinPerc = isProprio ? 0 : ((payload.tipo_financiamento === "MCMV") ? num(config.TAXA_FIN_MCMV) : num(config.TAXA_FIN_OUTROS));
   const taxaFinR = isProprio ? 0 : (valorFinBase * taxaFinPerc);
 
-  // ITBI (só quando compra terreno e não é próprio)
+  // ITBI (terreno): só quando compra terreno e não é próprio
   let itbi = 0, itbiIsentoBV = false, itbiPercAplicada = 0;
   if(!isProprio && !terrenoProprio && operacaoTerrenoConstrucao){
     if(payload.cidade === "BOA_VISTA"){
@@ -351,7 +470,6 @@ function calcTotal(payload, config){
   const custasPrevistas = (
     projetoValor +
     crea +
-    // alvará/habite sempre entram (se estiverem configurados)
     alvara +
     vistoria + taxaFinR + itbi + regAlienacao + tao +
     calcada + habite + cno + averbacao
@@ -360,6 +478,8 @@ function calcTotal(payload, config){
   const totalGeral = totalTerrenoConstrucao + custasPrevistas;
 
   return {
+    tipo_simulacao: "CONSTRUCAO",
+    isVenda: false,
     isProprio,
 
     area,
