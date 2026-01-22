@@ -214,13 +214,6 @@
           </div>
         </div>
 
-        <div class="row row-1" style="margin-top:10px" id="wrap_valor_financiado">
-          <div>
-            <label>Valor financiado (opcional)</label>
-            <input id="valor_financiado" placeholder="Se preencher Entrada/Subsídio/Por fora, pode deixar em branco"/>
-          </div>
-        </div>
-
         <div class="hr"></div>
 
         <h2>Calçada (Boa Vista)</h2>
@@ -370,7 +363,6 @@ function toggleTipoFinUI(){
     $('wrap_porfora').style.display = 'none';
     $('subsidio').value = '0';
     $('valor_por_fora').value = '0';
-
     $('help_composicao').textContent = 'Recursos próprios: Saldo = Total − Entrada.';
   } else {
     $('wrap_subsidio').style.display = 'block';
@@ -384,7 +376,7 @@ function toggleTipoFinUI(){
 function toggleCalcadaUI(){
   const city = $('cidade').value;
   const pc = $('possui_calcada').value;
-  const show = (city === 'BOA_VISTA' && pc === 'NAO');
+  const show = (city === 'BOA_VISTA' && pc === 'NAO' && $('tipo_simulacao').value === 'CONSTRUCAO');
   $('wrap_calcada_ml').style.display = show ? 'block' : 'none';
   if(!show) $('calcada_metros_lineares').value = '';
 }
@@ -407,32 +399,26 @@ function toggleTerrenoUI(){
 
 function toggleSimulacaoUI(){
   const tipoSim = $('tipo_simulacao').value;
+  const tf = $('tipo_financiamento').value;
 
   if(tipoSim === 'VENDA'){
-    // mostra venda / oculta construção
     $('secVenda').style.display = 'block';
     $('secConstrucao').style.display = 'none';
 
-    // campos de construção zerados
+    // não usa dados de construção
     $('operacao').value = 'CONSTRUCAO_APENAS';
     $('terreno_proprio').value = 'SIM';
     $('valor_terreno').value = '0';
     $('area_m2').value = '';
-    $('valor_financiado').value = '';
     $('possui_calcada').value = 'SIM';
     $('calcada_metros_lineares').value = '';
 
-    // esconder opções que não se aplicam
-    $('wrap_valor_financiado').style.display = 'none';
-
-    // venda: primeiro imóvel aparece (boa vista) e renda sempre mantém
+    // primeiro imóvel só faz sentido Boa Vista
     $('wrap_primeiro_imovel').style.display = ($('cidade').value === 'BOA_VISTA') ? 'block' : 'none';
 
   } else {
-    // construção
     $('secVenda').style.display = 'none';
     $('secConstrucao').style.display = 'block';
-    $('wrap_valor_financiado').style.display = '';
 
     $('wrap_primeiro_imovel').style.display = 'none';
     $('primeiro_imovel').value = 'NAO';
@@ -441,13 +427,9 @@ function toggleSimulacaoUI(){
     toggleCalcadaUI();
   }
 
-  // regra do PROPRIO para construção: some valor financiado opcional
-  if($('tipo_financiamento').value === 'PROPRIO'){
-    $('wrap_valor_financiado').style.display = 'none';
-    $('valor_financiado').value = '';
-  } else {
-    if(tipoSim === 'CONSTRUCAO') $('wrap_valor_financiado').style.display = '';
-  }
+  // PROPRIO: não tem subsídio/por fora; (já tratado)
+  // Venda PROPRIO: não tem vistoria/taxa/alienação, apenas ITBI (e saldo)
+  // Construção PROPRIO: sem vistoria/taxa/alienação/TAO, mas com alvará/habite/averba/cno etc
 }
 
 function renderCompanyBroker(){
@@ -504,8 +486,6 @@ function readPayload(){
     padrao: $('padrao').value,
     laje: $('laje').value,
 
-    valor_financiado: $('valor_financiado').value,
-
     entrada: $('entrada').value,
     subsidio: $('subsidio').value,
     valor_por_fora: $('valor_por_fora').value,
@@ -536,7 +516,9 @@ function renderReport(payload, calc){
   const boxStyle = "padding:10px;border:1px solid #ddd;border-radius:12px;margin:10px 0;";
   const strongStyle = "font-size:15px;font-weight:700;";
 
+  // =========================
   // VENDA
+  // =========================
   if(isVenda){
     const valorImovel = num(payload.valor_imovel);
 
@@ -578,6 +560,7 @@ function renderReport(payload, calc){
       <table class="table">
         ${!isProprio ? `
           <tr><td><b>Vistoria Caixa</b></td><td style="text-align:right"><b>${formatBRL(calc.vistoria)}</b></td></tr>
+
           <tr>
             <td><b>Taxa de financiamento</b><div class="muted" style="font-size:11px">${taxaExpl}</div></td>
             <td style="text-align:right"><b>${formatBRL(calc.taxaFinR)}</b></td>
@@ -601,10 +584,16 @@ function renderReport(payload, calc){
     return;
   }
 
-  // CONSTRUÇÃO (mantém o comportamento anterior)
+  // =========================
+  // CONSTRUÇÃO
+  // =========================
+  const isCanta = (payload.cidade === "CANTA");
+  const isBV = (payload.cidade === "BOA_VISTA");
+
   const terrenoEntra = (payload.tipo_financiamento !== 'PROPRIO' && payload.terreno_proprio !== 'SIM' && payload.operacao === 'TERRENO_E_CONSTRUCAO');
 
   const pad = calc.padraoInfo;
+
   const padBox = `
     <div style="${boxStyle}">
       <div style="${strongStyle}">Padrão selecionado</div>
@@ -650,15 +639,14 @@ function renderReport(payload, calc){
   let alvaraExpl = `${formatBRL(calc.alvaraRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.alvara)}`;
   let habiteExpl = `${formatBRL(calc.habiteRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.habite)}`;
 
-  if(payload.cidade === "CANTA"){
+  if(isCanta){
     alvaraExpl =
       `Autenticação: ${formatBRL(calc.alvaraRate)} × 20 = ${formatBRL(calc.canta_autent)} | ` +
       `Execução: ${formatBRL(calc.alvaraRate)} × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.canta_execucao)} | ` +
       `Legalização: 50% da Execução = ${formatBRL(calc.canta_legalizacao)} | ` +
       `Total: ${formatBRL(calc.alvara)}`;
+    habiteExpl = `${formatBRL(calc.habiteRate)} / m² × ${calc.area.toLocaleString('pt-BR')} m² = ${formatBRL(calc.habite)}`;
   }
-
-  const taxaExpl = `${formatPct(calc.taxaFinPerc)} × ${formatBRL(calc.valorFinBase)} = ${formatBRL(calc.taxaFinR)}`;
 
   const rowAlvara = `
     <tr>
@@ -672,6 +660,8 @@ function renderReport(payload, calc){
       <td style="text-align:right"><b>${formatBRL(calc.habite)}</b></td>
     </tr>
   `;
+
+  const taxaExpl = `${formatPct(calc.taxaFinPerc)} × ${formatBRL(calc.valorFinBase)} = ${formatBRL(calc.taxaFinR)}`;
 
   let itbiExpl = '—';
   if(calc.itbi === 0){
@@ -691,21 +681,29 @@ function renderReport(payload, calc){
     : `${formatBRL(calc.taoFixo)} (fixo)`;
 
   const calcadaML = num(payload.calcada_metros_lineares);
-  const calcadaExpl = (payload.cidade === "BOA_VISTA" && payload.possui_calcada === "NAO")
+  const calcadaExpl = (isBV && payload.possui_calcada === "NAO")
     ? `${formatBRL(calc.calcadaPrecoML)} / m × ${calcadaML.toLocaleString('pt-BR')} m = ${formatBRL(calc.calcada)}`
     : 'Não aplicável.';
 
   const showLaje = calc.temLaje && calc.laje > 0;
   const showCno = (calc.area > 70 && calc.cno > 0);
 
-  const isCanta = (payload.cidade === "CANTA");
-  const isBV = (payload.cidade === "BOA_VISTA");
+  // ORDEM CORRETA:
+  // Construção base -> (Laje se tiver) -> Projeto -> CREA
+  // Alvará: BV sempre após CREA; Cantá: PROPRIO após CREA; Cantá BANCO após Alienação
+  // Vistoria -> Taxa -> ITBI -> Alienação -> (Alvará Cantá BANCO) -> TAO
+  // Calçada -> Habite-se (sempre após Calçada) -> CNO (se >70) -> Averbação
 
   const custos = `
     <table class="table">
       <tr><td><b>Construção base</b></td><td style="text-align:right"><b>${formatBRL(calc.custoBase)}</b></td></tr>
 
-      ${showLaje ? `<tr><td><b>Laje</b> <div class="muted" style="font-size:11px">${formatBRL(calc.lajeAd)} / m² × ${calc.area.toLocaleString('pt-BR')} m²</div></td><td style="text-align:right"><b>${formatBRL(calc.laje)}</b></td></tr>` : ``}
+      ${showLaje ? `
+        <tr>
+          <td><b>Laje</b><div class="muted" style="font-size:11px">${formatBRL(calc.lajeAd)} / m² × ${calc.area.toLocaleString('pt-BR')} m²</div></td>
+          <td style="text-align:right"><b>${formatBRL(calc.laje)}</b></td>
+        </tr>
+      ` : ``}
 
       <tr>
         <td><b>${projetoLabel}</b><div class="muted" style="font-size:11px">${projetoExpl}</div></td>
@@ -717,7 +715,8 @@ function renderReport(payload, calc){
         <td style="text-align:right"><b>${formatBRL(calc.crea || 0)}</b></td>
       </tr>
 
-      ${isBV ? `${rowAlvara}${rowHabite}` : ``}
+      ${/* Alvará após CREA: BV sempre; Cantá quando PROPRIO */''}
+      ${(isBV || (isCanta && isProprio)) ? rowAlvara : ``}
 
       ${!isProprio ? `
         <tr><td><b>Vistoria Caixa</b></td><td style="text-align:right"><b>${formatBRL(calc.vistoria)}</b></td></tr>
@@ -734,7 +733,8 @@ function renderReport(payload, calc){
 
         <tr><td><b>Registro de Alienação</b></td><td style="text-align:right"><b>${formatBRL(calc.regAlienacao)}</b></td></tr>
 
-        ${isCanta ? `${rowAlvara}${rowHabite}` : ``}
+        ${/* Cantá com banco: alvará após alienação */''}
+        ${(isCanta && !isProprio) ? rowAlvara : ``}
 
         <tr>
           <td><b>TAO</b><div class="muted" style="font-size:11px">${taoExpl}</div></td>
@@ -747,7 +747,8 @@ function renderReport(payload, calc){
         <td style="text-align:right"><b>${formatBRL(calc.calcada)}</b></td>
       </tr>
 
-      ${!isCanta ? rowHabite : ``}
+      ${/* HABITE-SE SEMPRE APÓS CALÇADA (BV e CANTÁ) */''}
+      ${rowHabite}
 
       ${showCno ? `<tr><td><b>CNO (Receita Federal)</b></td><td style="text-align:right"><b>${formatBRL(calc.cno)}</b></td></tr>` : ``}
 
@@ -949,11 +950,9 @@ function fillFormFromLead(lead){
   setVal("renda_bruta_familiar", p.renda_bruta_familiar);
   setSel("primeiro_imovel", p.primeiro_imovel || "NAO");
 
-  // venda
   setSel("tipo_imovel", p.tipo_imovel || "NOVO");
   setVal("valor_imovel", p.valor_imovel);
 
-  // construção
   setSel("operacao", p.operacao);
   setSel("terreno_proprio", p.terreno_proprio);
   setVal("valor_terreno", p.valor_terreno);
@@ -962,8 +961,6 @@ function fillFormFromLead(lead){
   setSel("padrao", p.padrao);
   setSel("laje", p.laje);
 
-  setVal("valor_financiado", p.valor_financiado);
-
   setVal("entrada", p.entrada);
   setVal("subsidio", p.subsidio);
   setVal("valor_por_fora", p.valor_por_fora);
@@ -971,7 +968,6 @@ function fillFormFromLead(lead){
   setSel("possui_calcada", p.possui_calcada || "SIM");
   setVal("calcada_metros_lineares", p.calcada_metros_lineares);
 
-  // aplicar UI
   toggleTipoFinUI();
   toggleSimulacaoUI();
   toggleTerrenoUI();
